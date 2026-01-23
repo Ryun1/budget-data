@@ -1,0 +1,62 @@
+services:
+  # PostgreSQL Database
+  - type: pspg
+    name: treasury-database
+    databaseName: treasury_data
+    user: treasury_user
+    plan: starter
+
+  # YACI Store Indexer (Background Service)
+  - type: worker
+    name: treasury-indexer
+    env: java
+    buildCommand: cd indexer && mvn clean package -DskipTests
+    startCommand: cd indexer && java -jar target/treasury-indexer-1.0.0.jar
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: treasury-database
+          property: connectionString
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: treasury-database
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: treasury-database
+          property: password
+      - key: CARDANO_NODE_HOST
+        value: localhost
+      - key: CARDANO_NODE_PORT
+        value: 1337
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+
+  # ZiG REST API
+  - type: web
+    name: treasury-api
+    env: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: treasury-database
+          property: connectionString
+      - key: PORT
+        value: 8080
+    healthCheckPath: /api/treasury
+
+  # Next.js Frontend
+  - type: web
+    name: treasury-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: treasury-api
+          property: host
+    staticPublishPath: ./frontend/.next

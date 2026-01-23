@@ -1,0 +1,6 @@
+.{
+    .name = "treasury-api",
+    .version = "0.1.0",
+    .description = "ZiG REST API for Cardano Treasury Budget Data",
+    .dependencies = .{},
+}
