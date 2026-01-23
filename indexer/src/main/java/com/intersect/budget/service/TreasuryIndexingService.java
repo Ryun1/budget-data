@@ -1,7 +1,5 @@
 package com.intersect.budget.service;
 
-import com.bloxbean.cardano.yaci.store.utxo.storage.UtxoStorage;
-import com.bloxbean.cardano.yaci.store.utxo.storage.model.Utxo;
 import com.intersect.budget.domain.*;
 import com.intersect.budget.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,7 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @Slf4j
 public class TreasuryIndexingService {
-    private final UtxoStorage utxoStorage;
     private final TreasuryInstanceRepository treasuryInstanceRepository;
     private final VendorContractRepository vendorContractRepository;
     private final ProjectRepository projectRepository;
@@ -39,7 +36,6 @@ public class TreasuryIndexingService {
 
     @Autowired
     public TreasuryIndexingService(
-            UtxoStorage utxoStorage,
             TreasuryInstanceRepository treasuryInstanceRepository,
             VendorContractRepository vendorContractRepository,
             ProjectRepository projectRepository,
@@ -48,7 +44,6 @@ public class TreasuryIndexingService {
             TreasuryEventRepository eventRepository,
             MetadataParserService metadataParserService,
             ObjectMapper objectMapper) {
-        this.utxoStorage = utxoStorage;
         this.treasuryInstanceRepository = treasuryInstanceRepository;
         this.vendorContractRepository = vendorContractRepository;
         this.projectRepository = projectRepository;
@@ -64,12 +59,12 @@ public class TreasuryIndexingService {
     }
 
     @Transactional
-    public void processTransaction(String txHash, Long slot, Long blockHeight, Map<String, Object> metadata) {
+    public Long processTransaction(String txHash, Long slot, Long blockHeight, Map<String, Object> metadata) {
         try {
             // Parse metadata
             MetadataParserService.ParsedMetadata parsedMetadata = metadataParserService.parseMetadata(metadata);
             if (parsedMetadata == null || parsedMetadata.getEvent() == null) {
-                return; // Not a treasury-related transaction
+                return null; // Not a treasury-related transaction
             }
 
             String eventType = parsedMetadata.getEvent();
@@ -79,7 +74,7 @@ public class TreasuryIndexingService {
             Optional<TreasuryTransaction> existingTx = transactionRepository.findByTxHash(txHash);
             if (existingTx.isPresent()) {
                 log.debug("Transaction {} already processed", txHash);
-                return;
+                return existingTx.get().getProjectId();
             }
 
             // Get or create treasury instance
@@ -147,8 +142,11 @@ public class TreasuryIndexingService {
             }
             eventRepository.save(event);
 
+            return tx.getProjectId();
+
         } catch (Exception e) {
             log.error("Error processing transaction: {}", txHash, e);
+            return null;
         }
     }
 
@@ -221,9 +219,8 @@ public class TreasuryIndexingService {
             });
         }
 
-        // TODO: Extract vendor contract address from transaction output
-        // This would require accessing the transaction outputs from YACI Store
-        // For now, we'll need to implement this in the listener when we have access to UTXO data
+        // Vendor contract extraction is handled in the listener after transaction is processed
+        // This allows us to access UTXO data from YACI Store
     }
 
     private void handleDisburseEvent(TreasuryTransaction tx, MetadataParserService.ParsedMetadata metadata) {

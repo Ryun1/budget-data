@@ -45,7 +45,7 @@ pub const Connection = struct {
     }
 };
 
-pub fn init(allocator: std.mem.Allocator) !*Connection {
+pub fn init(allocator: std.mem.Allocator) !Connection {
     const db_url = std.os.getenv("DATABASE_URL") orelse "postgresql://postgres:postgres@localhost:5432/treasury_data";
     return try Connection.init(allocator, db_url);
 }

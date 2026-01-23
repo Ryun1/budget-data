@@ -56,3 +56,13 @@ logging:
     com.intersect.budget: DEBUG
     com.bloxbean.cardano.yaci: INFO
     org.springframework: INFO
+
+# Actuator (health checks)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized

@@ -1,34 +1,51 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-
-interface Project {
-  project_id: number
-  identifier: string
-  label: string
-  description: string
-  vendor_label: string
-}
+import { getProjects, type Project } from '../lib/api'
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-    fetch(`${apiUrl}/api/projects`)
-      .then(r => r.json())
-      .then(data => {
-        setProjects(data.projects || [])
+    async function fetchProjects() {
+      try {
+        const data = await getProjects()
+        setProjects(data)
         setLoading(false)
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error fetching projects:', err)
+        setError('Failed to load projects')
         setLoading(false)
-      })
+      }
+    }
+    fetchProjects()
   }, [])
 
   if (loading) {
-    return <div className="container">Loading...</div>
+    return (
+      <div>
+        <div className="header">
+          <h1>Projects</h1>
+        </div>
+        <div className="container">Loading...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div>
+        <div className="header">
+          <h1>Projects</h1>
+        </div>
+        <div className="container">
+          <div className="card">
+            <p style={{ color: 'red' }}>{error}</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -1,29 +1,25 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-
-interface Milestone {
-  milestone_id: number
-  project_id: number
-  identifier: string
-  status: string
-}
+import { getMilestones, type Milestone } from '../lib/api'
 
 export default function Milestones() {
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-    fetch(`${apiUrl}/api/milestones`)
-      .then(r => r.json())
-      .then(data => {
-        setMilestones(data.milestones || [])
+    async function fetchMilestones() {
+      try {
+        const data = await getMilestones()
+        setMilestones(data)
         setLoading(false)
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error fetching milestones:', err)
+        setError('Failed to load milestones')
         setLoading(false)
-      })
+      }
+    }
+    fetchMilestones()
   }, [])
 
   if (loading) {

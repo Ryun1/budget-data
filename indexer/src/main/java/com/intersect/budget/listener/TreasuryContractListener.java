@@ -4,6 +4,7 @@ import com.bloxbean.cardano.yaci.store.events.EventMetadata;
 import com.bloxbean.cardano.yaci.store.metadata.event.MetadataEvent;
 import com.bloxbean.cardano.yaci.store.transaction.events.TransactionEvent;
 import com.bloxbean.cardano.yaci.store.utxo.events.UtxoEvent;
+import com.intersect.budget.listener.TransactionOutputExtractor.VendorContractInfo;
 import com.intersect.budget.service.TreasuryIndexingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,12 +14,14 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
 @Slf4j
 public class TreasuryContractListener {
     private final TreasuryIndexingService indexingService;
+    private final TransactionOutputExtractor outputExtractor;
 
     @Value("${treasury.contract.payment-address}")
     private String treasuryPaymentAddress;
@@ -27,8 +30,11 @@ public class TreasuryContractListener {
     private String treasuryScriptHash;
 
     @Autowired
-    public TreasuryContractListener(TreasuryIndexingService indexingService) {
+    public TreasuryContractListener(
+            TreasuryIndexingService indexingService,
+            TransactionOutputExtractor outputExtractor) {
         this.indexingService = indexingService;
+        this.outputExtractor = outputExtractor;
     }
 
     @EventListener
@@ -86,10 +92,47 @@ public class TreasuryContractListener {
             log.debug("Processing metadata event for transaction: {}", txHash);
 
             // Process the transaction with metadata
-            indexingService.processTransaction(txHash, slot, null, metadata);
+            Long projectId = indexingService.processTransaction(txHash, slot, null, metadata);
+
+            // If this is a fund event, extract vendor contract addresses from outputs
+            try {
+                Object metadataValue = metadata.get("1694");
+                if (metadataValue instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> metadataMap = (Map<String, Object>) metadataValue;
+                    Object body = metadataMap.get("body");
+                    if (body instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> bodyMap = (Map<String, Object>) body;
+                        Object event = bodyMap.get("event");
+                        if ("fund".equals(event) && projectId != null) {
+                            // Extract vendor contract addresses from transaction outputs
+                            // This happens after the project is created, so we have the projectId
+                            List<VendorContractInfo> vendorContracts = 
+                                outputExtractor.extractVendorContractsFromFund(txHash, treasuryPaymentAddress);
+                            
+                            if (vendorContracts.isEmpty()) {
+                                log.debug("No vendor contracts found in transaction outputs for: {}", txHash);
+                            } else {
+                                for (VendorContractInfo vendorInfo : vendorContracts) {
+                                    indexingService.registerVendorContract(
+                                        vendorInfo.getPaymentAddress(),
+                                        vendorInfo.getScriptHash(),
+                                        projectId,
+                                        txHash
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to extract vendor contract addresses from transaction: {}", txHash, e);
+            }
 
         } catch (Exception e) {
             log.error("Error handling metadata event", e);
         }
     }
+
 }

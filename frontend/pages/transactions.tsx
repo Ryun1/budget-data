@@ -1,28 +1,25 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-
-interface Transaction {
-  tx_hash: string
-  event_type: string
-  slot: number
-}
+import { getTransactions, type Transaction } from '../lib/api'
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-    fetch(`${apiUrl}/api/transactions`)
-      .then(r => r.json())
-      .then(data => {
-        setTransactions(data.transactions || [])
+    async function fetchTransactions() {
+      try {
+        const data = await getTransactions()
+        setTransactions(data)
         setLoading(false)
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error fetching transactions:', err)
+        setError('Failed to load transactions')
         setLoading(false)
-      })
+      }
+    }
+    fetchTransactions()
   }, [])
 
   if (loading) {
@@ -65,7 +62,7 @@ export default function Transactions() {
                     <td>{tx.event_type || '-'}</td>
                     <td>{tx.slot}</td>
                     <td>
-                      <Link href={`/transactions/${tx.tx_hash}`}>View</Link>
+                      <Link href={`/transactions/${tx.tx_hash}`} style={{ color: '#0066cc' }}>View Details</Link>
                     </td>
                   </tr>
                 ))}

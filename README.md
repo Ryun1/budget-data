@@ -65,12 +65,56 @@ Use the provided `render.yaml` for deployment on Render.com:
 ## API Endpoints
 
 - `GET /api/treasury` - Get treasury instance details
-- `GET /api/projects` - List all projects
+- `GET /api/projects` - List all projects (supports `limit`, `offset`)
 - `GET /api/projects/{id}` - Get project details
-- `GET /api/transactions` - List transactions
+- `GET /api/transactions` - List transactions (supports `limit`, `offset`, `event_type`, `project_id`)
+- `GET /api/transactions/{hash}` - Get transaction details
 - `GET /api/milestones` - List milestones
 - `GET /api/vendor-contracts` - List vendor contracts
-- `GET /api/events` - List events
+- `GET /api/events` - List events (supports `limit`, `offset`, `event_type`, `project_id`)
+- `GET /health` - Health check
+
+See [API Documentation](docs/API.md) and [Query Parameters](docs/QUERY_PARAMETERS.md) for details.
+
+## Quick Start
+
+### Using Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+### Manual Setup
+
+```bash
+# Run setup script
+make setup
+
+# Or manually:
+cd indexer && mvn clean package
+cd ../api && zig build
+cd ../frontend && npm install
+```
+
+### Development
+
+```bash
+# Start all services
+make dev
+
+# Or use Docker Compose
+make docker-up
+```
+
+## Documentation
+
+- [Indexer README](indexer/README.md)
+- [API README](api/README.md)
+- [Frontend README](frontend/README.md)
+- [API Documentation](docs/API.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Deployment Guide](DEPLOYMENT.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## License
 

@@ -27,3 +27,10 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
