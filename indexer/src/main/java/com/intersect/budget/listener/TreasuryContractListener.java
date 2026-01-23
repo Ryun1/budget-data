@@ -5,6 +5,7 @@ import com.bloxbean.cardano.yaci.store.metadata.event.MetadataEvent;
 import com.bloxbean.cardano.yaci.store.transaction.events.TransactionEvent;
 import com.bloxbean.cardano.yaci.store.utxo.events.UtxoEvent;
 import com.intersect.budget.listener.TransactionOutputExtractor.VendorContractInfo;
+import com.intersect.budget.service.SlotTracker;
 import com.intersect.budget.service.TreasuryIndexingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class TreasuryContractListener {
     private final TreasuryIndexingService indexingService;
     private final TransactionOutputExtractor outputExtractor;
+    private final SlotTracker slotTracker;
 
     @Value("${treasury.contract.payment-address}")
     private String treasuryPaymentAddress;
@@ -32,9 +34,11 @@ public class TreasuryContractListener {
     @Autowired
     public TreasuryContractListener(
             TreasuryIndexingService indexingService,
-            TransactionOutputExtractor outputExtractor) {
+            TransactionOutputExtractor outputExtractor,
+            SlotTracker slotTracker) {
         this.indexingService = indexingService;
         this.outputExtractor = outputExtractor;
+        this.slotTracker = slotTracker;
     }
 
     @EventListener
@@ -91,8 +95,17 @@ public class TreasuryContractListener {
 
             log.debug("Processing metadata event for transaction: {}", txHash);
 
+            // Get block height if available
+            Long blockHeight = null;
+            try {
+                // Try to get block height from transaction event if available
+                // This may need adjustment based on YACI Store event structure
+            } catch (Exception e) {
+                log.debug("Could not extract block height: {}", e.getMessage());
+            }
+            
             // Process the transaction with metadata
-            Long projectId = indexingService.processTransaction(txHash, slot, null, metadata);
+            Long projectId = indexingService.processTransaction(txHash, slot, blockHeight, metadata);
 
             // If this is a fund event, extract vendor contract addresses from outputs
             try {
@@ -129,6 +142,9 @@ public class TreasuryContractListener {
             } catch (Exception e) {
                 log.warn("Failed to extract vendor contract addresses from transaction: {}", txHash, e);
             }
+
+            // Mark slot as processed
+            slotTracker.markProcessed(slot);
 
         } catch (Exception e) {
             log.error("Error handling metadata event", e);

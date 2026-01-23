@@ -2,6 +2,7 @@ const std = @import("std");
 const db = @import("db.zig");
 const utils = @import("utils.zig");
 const query_params = @import("query_params.zig");
+const errors = @import("errors.zig");
 const c = @cImport({
     @cInclude("libpq-fe.h");
 });
@@ -125,11 +126,11 @@ pub fn handleGetProjectDetail(stream: std.net.Stream, conn: *db.Connection, proj
 
     const num_rows = c.PQntuples(result);
     if (num_rows == 0) {
-        sendError(stream, 404, "Project not found") catch return;
+        errors.sendErrorResponse(stream, 404, "Project not found") catch return;
         return;
     }
 
-    var json = std.ArrayList(u8).init(conn.allocator);
+    var json = std.ArrayList(u8).init(allocator);
     defer json.deinit();
 
     try json.appendSlice("{\"project_id\":");
@@ -139,7 +140,7 @@ pub fn handleGetProjectDetail(stream: std.net.Stream, conn: *db.Connection, proj
     try json.appendSlice("\",\"label\":\"");
     const label = c.PQgetvalue(result, 0, 2);
     if (label[0] != 0) {
-        try utils.escapeJsonInPlace(conn.allocator, std.mem.span(label), &json);
+        try utils.escapeJsonInPlace(allocator, std.mem.span(label), &json);
     }
     try json.appendSlice("\",\"description\":\"");
     const description = c.PQgetvalue(result, 0, 3);
@@ -188,7 +189,7 @@ pub fn handleGetTransactionDetail(stream: std.net.Stream, conn: *db.Connection, 
 
     const num_rows = c.PQntuples(result);
     if (num_rows == 0) {
-        sendError(stream, 404, "Transaction not found") catch return;
+        errors.sendErrorResponse(stream, 404, "Transaction not found") catch return;
         return;
     }
 
@@ -347,8 +348,15 @@ pub fn handleGetVendorContracts(stream: std.net.Stream, conn: *db.Connection) !v
         if (i > 0) try json.appendSlice(",");
         try json.appendSlice("{\"contract_id\":");
         try json.appendSlice(c.PQgetvalue(result, i, 0));
+        try json.appendSlice(",\"project_id\":");
+        try json.appendSlice(c.PQgetvalue(result, i, 1));
         try json.appendSlice(",\"payment_address\":\"");
         try json.appendSlice(c.PQgetvalue(result, i, 2));
+        try json.appendSlice("\",\"script_hash\":\"");
+        const script_hash = c.PQgetvalue(result, i, 3);
+        if (script_hash[0] != 0) {
+            try json.appendSlice(std.mem.span(script_hash));
+        }
         try json.appendSlice("\"}");
     }
 
@@ -416,7 +424,16 @@ pub fn handleGetEvents(stream: std.net.Stream, conn: *db.Connection, query_strin
         try json.appendSlice(c.PQgetvalue(result, i, 0));
         try json.appendSlice(",\"event_type\":\"");
         try json.appendSlice(c.PQgetvalue(result, i, 2));
-        try json.appendSlice("\"}");
+        try json.appendSlice("\",\"tx_id\":");
+        try json.appendSlice(c.PQgetvalue(result, i, 1));
+        try json.appendSlice(",\"project_id\":");
+        const project_id = c.PQgetvalue(result, i, 3);
+        if (project_id[0] != 0) {
+            try json.appendSlice(project_id);
+        } else {
+            try json.appendSlice("null");
+        }
+        try json.appendSlice("}");
     }
 
     try json.appendSlice("]}");
@@ -444,23 +461,5 @@ fn sendJsonResponse(stream: std.net.Stream, json: []const u8) !void {
 }
 
 fn sendError(stream: std.net.Stream, code: u16, message: []const u8) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const body = try std.fmt.allocPrint(allocator, "{{\"error\":\"{s}\"}}", .{message});
-    defer allocator.free(body);
-    
-    const response = try std.fmt.allocPrint(
-        allocator,
-        "HTTP/1.1 {d} {s}\r\n" ++
-        "Content-Type: application/json\r\n" ++
-        "Access-Control-Allow-Origin: *\r\n" ++
-        "Content-Length: {d}\r\n" ++
-        "\r\n" ++
-        "{s}",
-        .{ code, if (code == 500) "Internal Server Error" else "Not Found", body.len, body }
-    );
-    defer allocator.free(response);
-    _ = try stream.write(response);
+    try errors.sendErrorResponse(stream, code, message);
 }

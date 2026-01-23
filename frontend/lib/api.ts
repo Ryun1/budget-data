@@ -32,6 +32,13 @@ export interface Milestone {
   amount_lovelace?: number;
 }
 
+export interface VendorContract {
+  contract_id: number;
+  project_id: number;
+  payment_address: string;
+  script_hash?: string;
+}
+
 export async function getTreasury(): Promise<Treasury | null> {
   try {
     const response = await fetch(`${API_URL}/api/treasury`);
@@ -66,15 +73,34 @@ export async function getProject(id: number): Promise<Project | null> {
   }
 }
 
-export async function getTransactions(): Promise<Transaction[]> {
+export async function getTransactions(params?: { limit?: number; offset?: number; event_type?: string; project_id?: number }): Promise<Transaction[]> {
   try {
-    const response = await fetch(`${API_URL}/api/transactions`);
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.event_type) queryParams.append('event_type', params.event_type);
+    if (params?.project_id) queryParams.append('project_id', params.project_id.toString());
+    
+    const queryString = queryParams.toString();
+    const url = `${API_URL}/api/transactions${queryString ? `?${queryString}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) return [];
     const data = await response.json();
     return data.transactions || [];
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return [];
+  }
+}
+
+export async function getTransaction(hash: string): Promise<Transaction | null> {
+  try {
+    const response = await fetch(`${API_URL}/api/transactions/${hash}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching transaction:', error);
+    return null;
   }
 }
 
@@ -86,6 +112,38 @@ export async function getMilestones(): Promise<Milestone[]> {
     return data.milestones || [];
   } catch (error) {
     console.error('Error fetching milestones:', error);
+    return [];
+  }
+}
+
+export async function getVendorContracts(): Promise<VendorContract[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/vendor-contracts`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.vendor_contracts || [];
+  } catch (error) {
+    console.error('Error fetching vendor contracts:', error);
+    return [];
+  }
+}
+
+export async function getEvents(params?: { limit?: number; offset?: number; event_type?: string; project_id?: number }): Promise<any[]> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    if (params?.event_type) queryParams.append('event_type', params.event_type);
+    if (params?.project_id) queryParams.append('project_id', params.project_id.toString());
+    
+    const queryString = queryParams.toString();
+    const url = `${API_URL}/api/events${queryString ? `?${queryString}` : ''}`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.events || [];
+  } catch (error) {
+    console.error('Error fetching events:', error);
     return [];
   }
 }

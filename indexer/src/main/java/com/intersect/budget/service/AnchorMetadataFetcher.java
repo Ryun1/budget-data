@@ -30,9 +30,10 @@ public class AnchorMetadataFetcher {
                     .uri(anchorUrl)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(java.time.Duration.ofSeconds(10))
                     .block();
 
-            if (content == null) {
+            if (content == null || content.isEmpty()) {
                 log.warn("Failed to fetch metadata from anchor URL: {}", anchorUrl);
                 return null;
             }
@@ -48,6 +49,9 @@ public class AnchorMetadataFetcher {
             }
 
             return objectMapper.readTree(content);
+        } catch (java.util.concurrent.TimeoutException e) {
+            log.error("Timeout fetching metadata from anchor URL: {}", anchorUrl);
+            return null;
         } catch (Exception e) {
             log.error("Error fetching metadata from anchor URL: {}", anchorUrl, e);
             return null;

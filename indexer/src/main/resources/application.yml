@@ -2,6 +2,10 @@ spring:
   application:
     name: treasury-indexer
   
+  # Disable web server (indexer runs as background worker)
+  main:
+    web-application-type: none
+  
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/treasury_data}
     username: ${DATABASE_USERNAME:postgres}
@@ -66,3 +70,10 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+# Application properties
+app:
+  max-vendor-contracts: -1
+  verbose-metadata-logging: false
+  metadata-fetch-timeout: 10
+  max-retries: 3

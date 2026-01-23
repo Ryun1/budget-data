@@ -57,6 +57,8 @@ export default function Projects() {
           <Link href="/projects">Projects</Link>
           <Link href="/transactions">Transactions</Link>
           <Link href="/milestones">Milestones</Link>
+          <Link href="/vendor-contracts">Vendor Contracts</Link>
+          <Link href="/events">Events</Link>
         </nav>
       </div>
 

@@ -23,6 +23,7 @@ public class TreasuryIndexingService {
     private final TreasuryEventRepository eventRepository;
     private final MetadataParserService metadataParserService;
     private final ObjectMapper objectMapper;
+    private final IndexingMetrics metrics;
 
     @Value("${treasury.contract.payment-address}")
     private String treasuryPaymentAddress;
@@ -43,7 +44,8 @@ public class TreasuryIndexingService {
             TreasuryTransactionRepository transactionRepository,
             TreasuryEventRepository eventRepository,
             MetadataParserService metadataParserService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            IndexingMetrics metrics) {
         this.treasuryInstanceRepository = treasuryInstanceRepository;
         this.vendorContractRepository = vendorContractRepository;
         this.projectRepository = projectRepository;
@@ -52,6 +54,7 @@ public class TreasuryIndexingService {
         this.eventRepository = eventRepository;
         this.metadataParserService = metadataParserService;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
 
         // Initialize with treasury contract address
         trackedAddresses.add(treasuryPaymentAddress);
@@ -70,12 +73,14 @@ public class TreasuryIndexingService {
             String eventType = parsedMetadata.getEvent();
             log.debug("Processing transaction {} with event type: {}", txHash, eventType);
 
-            // Check if transaction already processed
+            // Check if transaction already processed (optimized check)
             Optional<TreasuryTransaction> existingTx = transactionRepository.findByTxHash(txHash);
             if (existingTx.isPresent()) {
                 log.debug("Transaction {} already processed", txHash);
                 return existingTx.get().getProjectId();
             }
+            
+            // Additional validation could be added here if needed
 
             // Get or create treasury instance
             TreasuryInstance instance = getOrCreateTreasuryInstance(parsedMetadata);
@@ -142,10 +147,14 @@ public class TreasuryIndexingService {
             }
             eventRepository.save(event);
 
+            // Update metrics
+            metrics.incrementTransactionsProcessed();
+
             return tx.getProjectId();
 
         } catch (Exception e) {
             log.error("Error processing transaction: {}", txHash, e);
+            metrics.incrementErrors();
             return null;
         }
     }
@@ -201,12 +210,18 @@ public class TreasuryIndexingService {
         tx.setProjectId(project.getProjectId());
         transactionRepository.save(tx);
 
+        // Update metrics
+        if (project.getProjectId() != null && projectRepository.findById(project.getProjectId()).isEmpty()) {
+            metrics.incrementProjectsCreated();
+        }
+
         // Create milestones
         if (metadata.getMilestones() != null) {
             metadata.getMilestones().forEach((milestoneId, milestoneData) -> {
-                Milestone milestone = milestoneRepository
-                        .findByProjectIdAndIdentifier(project.getProjectId(), milestoneId)
-                        .orElse(new Milestone());
+                Optional<Milestone> existingMilestone = milestoneRepository
+                        .findByProjectIdAndIdentifier(project.getProjectId(), milestoneId);
+                
+                Milestone milestone = existingMilestone.orElse(new Milestone());
 
                 milestone.setProjectId(project.getProjectId());
                 milestone.setIdentifier(milestoneId);
@@ -216,6 +231,11 @@ public class TreasuryIndexingService {
                 milestone.setStatus(Milestone.MilestoneStatus.PENDING);
 
                 milestoneRepository.save(milestone);
+                
+                // Update metrics
+                if (existingMilestone.isEmpty()) {
+                    metrics.incrementMilestonesCreated();
+                }
             });
         }
 
@@ -334,6 +354,9 @@ public class TreasuryIndexingService {
         if (scriptHash != null) {
             trackedScriptHashes.add(scriptHash);
         }
+
+        // Update metrics
+        metrics.incrementVendorContractsDiscovered();
 
         log.info("Registered new vendor contract: {} for project {}", paymentAddress, projectId);
     }

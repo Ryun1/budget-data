@@ -1,42 +1,87 @@
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-
-interface Project {
-  project_id: number
-  identifier: string
-  label: string
-  description: string
-}
+import { getProject, getMilestones, type Project, type Milestone } from '../../lib/api'
 
 export default function ProjectDetail() {
   const router = useRouter()
   const { id } = router.query
   const [project, setProject] = useState<Project | null>(null)
+  const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
     
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-    fetch(`${apiUrl}/api/projects/${id}`)
-      .then(r => r.json())
-      .then(data => {
-        setProject(data)
+    async function fetchData() {
+      try {
+        const projectId = typeof id === 'string' ? parseInt(id) : Number(id)
+        const [projectData, milestonesData] = await Promise.all([
+          getProject(projectId),
+          getMilestones()
+        ])
+        
+        if (!projectData) {
+          setError('Project not found')
+          setLoading(false)
+          return
+        }
+        
+        setProject(projectData)
+        // Filter milestones for this project
+        const projectMilestones = milestonesData.filter(m => m.project_id === projectId)
+        setMilestones(projectMilestones)
         setLoading(false)
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Error fetching project:', err)
+        setError('Failed to load project')
         setLoading(false)
-      })
+      }
+    }
+    fetchData()
   }, [id])
 
   if (loading) {
-    return <div className="container">Loading...</div>
+    return (
+      <div>
+        <div className="header">
+          <h1>Project Details</h1>
+          <nav className="nav">
+            <Link href="/">Dashboard</Link>
+            <Link href="/projects">Projects</Link>
+            <Link href="/transactions">Transactions</Link>
+            <Link href="/milestones">Milestones</Link>
+            <Link href="/vendor-contracts">Vendor Contracts</Link>
+            <Link href="/events">Events</Link>
+          </nav>
+        </div>
+        <div className="container">Loading...</div>
+      </div>
+    )
   }
 
-  if (!project) {
-    return <div className="container">Project not found</div>
+  if (error || !project) {
+    return (
+      <div>
+        <div className="header">
+          <h1>Project Details</h1>
+          <nav className="nav">
+            <Link href="/">Dashboard</Link>
+            <Link href="/projects">Projects</Link>
+            <Link href="/transactions">Transactions</Link>
+            <Link href="/milestones">Milestones</Link>
+            <Link href="/vendor-contracts">Vendor Contracts</Link>
+            <Link href="/events">Events</Link>
+          </nav>
+        </div>
+        <div className="container">
+          <div className="card">
+            <p style={{ color: 'red' }}>{error || 'Project not found'}</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -48,18 +93,77 @@ export default function ProjectDetail() {
           <Link href="/projects">Projects</Link>
           <Link href="/transactions">Transactions</Link>
           <Link href="/milestones">Milestones</Link>
+          <Link href="/vendor-contracts">Vendor Contracts</Link>
+          <Link href="/events">Events</Link>
         </nav>
       </div>
 
       <div className="container">
         <div className="card">
           <h2>{project.label || project.identifier}</h2>
-          <p><strong>ID:</strong> {project.project_id}</p>
-          <p><strong>Identifier:</strong> {project.identifier}</p>
-          {project.description && (
-            <p><strong>Description:</strong> {project.description}</p>
-          )}
+          <table className="table">
+            <tbody>
+              <tr>
+                <th>Project ID</th>
+                <td>{project.project_id}</td>
+              </tr>
+              <tr>
+                <th>Identifier</th>
+                <td>{project.identifier}</td>
+              </tr>
+              {project.label && (
+                <tr>
+                  <th>Label</th>
+                  <td>{project.label}</td>
+                </tr>
+              )}
+              {project.description && (
+                <tr>
+                  <th>Description</th>
+                  <td>{project.description}</td>
+                </tr>
+              )}
+              {project.vendor_label && (
+                <tr>
+                  <th>Vendor</th>
+                  <td>{project.vendor_label}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
+
+        {milestones.length > 0 && (
+          <div className="card">
+            <h2>Milestones ({milestones.length})</h2>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Identifier</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {milestones.map((milestone) => (
+                  <tr key={milestone.milestone_id}>
+                    <td>{milestone.identifier}</td>
+                    <td>
+                      <span className={`status ${milestone.status.toLowerCase()}`}>
+                        {milestone.status}
+                      </span>
+                    </td>
+                    <td>
+                      {milestone.amount_lovelace 
+                        ? `${(milestone.amount_lovelace / 1_000_000).toFixed(2)} ADA`
+                        : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   )
