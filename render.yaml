@@ -32,7 +32,7 @@ services:
       - key: SPRING_PROFILES_ACTIVE
         value: production
 
-  # ZiG REST API
+  # Rust REST API
   - type: web
     name: treasury-api
     env: docker
