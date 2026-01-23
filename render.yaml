@@ -9,9 +9,9 @@ services:
   # YACI Store Indexer (Background Service)
   - type: worker
     name: treasury-indexer
-    env: java
-    buildCommand: cd indexer && mvn clean package -DskipTests
-    startCommand: cd indexer && java -jar target/treasury-indexer-1.0.0.jar
+    env: docker
+    dockerfilePath: ./indexer/Dockerfile
+    dockerContext: ./indexer
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -59,4 +59,3 @@ services:
           type: web
           name: treasury-api
           property: host
-    staticPublishPath: ./frontend/.next
