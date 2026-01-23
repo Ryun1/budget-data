@@ -1,11 +1,11 @@
-services:
+databases:
   # PostgreSQL Database
-  - type: pg
-    name: treasury-database
+  - name: treasury-database
     databaseName: treasury_data
     user: treasury_user
     plan: starter
 
+services:
   # YACI Store Indexer (Background Service)
   - type: worker
     name: treasury-indexer
