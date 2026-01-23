@@ -3,7 +3,7 @@ databases:
   - name: treasury-database
     databaseName: treasury_data
     user: treasury_user
-    plan: starter
+    plan: basic-256mb
 
 services:
   # YACI Store Indexer (Background Service)
