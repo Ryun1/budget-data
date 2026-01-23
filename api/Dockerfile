@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Zig
-# Download and install Zig 0.12.0 (latest stable as of 2024)
+# Download and install Zig 0.12.0 (stable version with known build.zig.zon format)
 RUN wget https://ziglang.org/download/0.12.0/zig-linux-x86_64-0.12.0.tar.xz && \
     tar -xf zig-linux-x86_64-0.12.0.tar.xz && \
     mv zig-linux-x86_64-0.12.0 /opt/zig && \
