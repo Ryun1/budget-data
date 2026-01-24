@@ -2,13 +2,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getEvents, type Event } from '../lib/api'
 
-interface Event {
-  event_id: number
-  event_type: string
-  tx_id: number
-  project_id?: number
-}
-
 export default function Events() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)

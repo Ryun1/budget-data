@@ -39,6 +39,13 @@ export interface VendorContract {
   script_hash?: string;
 }
 
+export interface Event {
+  event_id: number;
+  event_type: string;
+  tx_id: number;
+  project_id?: number;
+}
+
 export async function getTreasury(): Promise<Treasury | null> {
   try {
     const response = await fetch(`${API_URL}/api/treasury`);

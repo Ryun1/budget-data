@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { getTreasury, getProjects, getTransactions, getMilestones, type Treasury, type Project } from '../lib/api'
 import StatsCard from '../components/StatsCard'
 import LoadingSpinner from '../components/LoadingSpinner'
-import '../styles/components.css'
 
 export default function Home() {
   const [treasury, setTreasury] = useState<Treasury | null>(null)
