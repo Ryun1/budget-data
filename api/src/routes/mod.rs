@@ -8,3 +8,5 @@ pub mod fund;
 pub mod disburse;
 pub mod withdraw;
 pub mod projects;
+pub mod treasury;
+pub mod events;

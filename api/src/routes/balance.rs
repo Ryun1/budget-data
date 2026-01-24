@@ -15,10 +15,10 @@ pub struct BalanceResponse {
 pub async fn get_balance(
     Extension(pool): Extension<PgPool>,
 ) -> Result<Json<BalanceResponse>, StatusCode> {
-    // Get balance from yaci_store.address_utxo table (filtered to treasury addresses)
+    // Get total balance from treasury UTXOs (unspent only)
     let result = sqlx::query_as::<_, (i64,)>(
         "SELECT CAST(COALESCE(SUM(lovelace_amount), 0) AS BIGINT) as total
-         FROM yaci_store.address_utxo"
+         FROM treasury.utxos WHERE NOT spent"
     )
     .fetch_one(&pool)
     .await

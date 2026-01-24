@@ -7,6 +7,8 @@ export interface Stats {
   total_balance_lovelace: number;
   treasury_addresses: number;
   latest_block: number | null;
+  project_count: number;
+  milestone_count: number;
 }
 
 // Balance response from /api/balance
@@ -55,34 +57,53 @@ export interface FundFlow {
   metadata: any;
 }
 
-// Project (vendor contract) from /api/projects
+// Project (vendor contract) from /api/projects - now uses treasury.v_vendor_contracts_summary
 export interface Project {
+  id: number;
   project_id: string;
   project_name: string | null;
   description: string | null;
+  vendor_name: string | null;
   vendor_address: string | null;
-  milestone_count: number;
-  contract_instance: string | null;
-  fund_tx_hash: string;
-  created_slot: number | null;
-  created_time: number | null;
-  created_block: number | null;
-  // Contract address (PSSC) where project funds are locked
   contract_address: string | null;
+  fund_tx_hash: string;
+  fund_slot: number | null;
+  fund_block_time: number | null;
+  initial_amount_lovelace: number | null;
+  status: string | null;
+  treasury_instance: string | null;
+  total_milestones: number | null;
+  completed_milestones: number | null;
+  disbursed_milestones: number | null;
+  current_balance: number | null;
+  utxo_count: number | null;
+  // Compatibility aliases for old code
+  milestone_count?: number;
+  contract_instance?: string | null;
+  created_slot?: number | null;
+  created_time?: number | null;
+  created_block?: number | null;
 }
 
 // Milestone from /api/projects/:id
 export interface Milestone {
   project_id: string;
   milestone_id: string;
-  milestone_label: string | null;
-  acceptance_criteria: string | null;
   milestone_order: number;
+  label: string | null;
+  description: string | null;
+  acceptance_criteria: string | null;
+  amount_lovelace: number | null;
   status: 'pending' | 'completed' | 'disbursed';
   complete_tx_hash: string | null;
   complete_time: number | null;
+  complete_description: string | null;
+  evidence: any;
   disburse_tx_hash: string | null;
   disburse_time: number | null;
+  disburse_amount: number | null;
+  // Compatibility alias
+  milestone_label?: string | null;
 }
 
 // Project event
@@ -90,7 +111,7 @@ export interface ProjectEvent {
   tx_hash: string;
   slot: number | null;
   block_time: number | null;
-  event_type: string | null;
+  event_type: string;
   milestone_id: string | null;
   metadata: any;
 }
@@ -107,11 +128,46 @@ export interface ProjectUtxo {
 // Full project detail from /api/projects/:id
 export interface ProjectDetail {
   project: Project;
-  balance_lovelace: number;
-  utxo_count: number;
   milestones: Milestone[];
   events: ProjectEvent[];
   utxos: ProjectUtxo[];
+  // Compatibility - these now come from project object
+  balance_lovelace?: number;
+  utxo_count?: number;
+}
+
+// TOM Event with context from /api/events
+export interface TomEvent {
+  id: number;
+  tx_hash: string;
+  slot: number | null;
+  block_number: number | null;
+  block_time: number | null;
+  event_type: string;
+  amount_lovelace: number | null;
+  reason: string | null;
+  destination: string | null;
+  metadata: any;
+  treasury_instance: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  milestone_label: string | null;
+  milestone_order: number | null;
+}
+
+// Treasury contract from /api/treasury
+export interface TreasuryContract {
+  treasury_id: number;
+  contract_instance: string;
+  contract_address: string | null;
+  name: string | null;
+  status: string | null;
+  publish_time: number | null;
+  initialized_at: number | null;
+  vendor_contract_count: number | null;
+  active_contracts: number | null;
+  treasury_balance: number | null;
+  total_events: number | null;
 }
 
 export async function getStats(): Promise<Stats | null> {
@@ -268,7 +324,15 @@ export async function getProjects(params?: {
     const url = `${API_URL}/api/projects${queryString ? `?${queryString}` : ''}`;
     const response = await fetch(url);
     if (!response.ok) return [];
-    return await response.json();
+    const projects = await response.json();
+    // Add compatibility fields
+    return projects.map((p: Project) => ({
+      ...p,
+      milestone_count: p.total_milestones || 0,
+      contract_instance: p.treasury_instance,
+      created_slot: p.fund_slot,
+      created_time: p.fund_block_time,
+    }));
   } catch (error) {
     console.error('Error fetching projects:', error);
     return [];
@@ -279,7 +343,26 @@ export async function getProject(projectId: string): Promise<ProjectDetail | nul
   try {
     const response = await fetch(`${API_URL}/api/projects/${encodeURIComponent(projectId)}`);
     if (!response.ok) return null;
-    return await response.json();
+    const detail = await response.json();
+    // Add compatibility fields
+    const project = {
+      ...detail.project,
+      milestone_count: detail.project.total_milestones || 0,
+      contract_instance: detail.project.treasury_instance,
+      created_slot: detail.project.fund_slot,
+      created_time: detail.project.fund_block_time,
+    };
+    const milestones = detail.milestones.map((m: Milestone) => ({
+      ...m,
+      milestone_label: m.label,
+    }));
+    return {
+      ...detail,
+      project,
+      milestones,
+      balance_lovelace: detail.project.current_balance || 0,
+      utxo_count: detail.project.utxo_count || 0,
+    };
   } catch (error) {
     console.error('Error fetching project:', error);
     return null;
@@ -290,7 +373,12 @@ export async function getProjectMilestones(projectId: string): Promise<Milestone
   try {
     const response = await fetch(`${API_URL}/api/projects/${encodeURIComponent(projectId)}/milestones`);
     if (!response.ok) return [];
-    return await response.json();
+    const milestones = await response.json();
+    // Add compatibility field
+    return milestones.map((m: Milestone) => ({
+      ...m,
+      milestone_label: m.label,
+    }));
   } catch (error) {
     console.error('Error fetching project milestones:', error);
     return [];
@@ -308,8 +396,46 @@ export async function getProjectEvents(projectId: string): Promise<ProjectEvent[
   }
 }
 
+// New: Get all TOM events
+export async function getEvents(params?: {
+  page?: number;
+  limit?: number;
+  type?: string;
+  project_id?: string;
+}): Promise<TomEvent[]> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.type) queryParams.append('type', params.type);
+    if (params?.project_id) queryParams.append('project_id', params.project_id);
+
+    const queryString = queryParams.toString();
+    const url = `${API_URL}/api/events${queryString ? `?${queryString}` : ''}`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    return [];
+  }
+}
+
+// New: Get treasury contracts
+export async function getTreasuryContracts(): Promise<TreasuryContract[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/treasury`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching treasury contracts:', error);
+    return [];
+  }
+}
+
 // Helper to format ADA amounts
-export function formatAda(lovelace: number): string {
+export function formatAda(lovelace: number | null | undefined): string {
+  if (lovelace == null) return '0.00';
   return (lovelace / 1_000_000).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 6
