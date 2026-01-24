@@ -57,6 +57,21 @@ services:
     networks:
       - treasury-network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: treasury-frontend
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - treasury-network
+
 volumes:
   postgres_data:
 
