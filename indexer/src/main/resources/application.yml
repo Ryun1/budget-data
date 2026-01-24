@@ -26,26 +26,15 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
-# YACI Store Configuration
+# YACI Store Configuration (using defaults)
 yaci:
   store:
     # Start indexing from this slot
-    start-slot: 160964954
-    # Cardano node connection (n2c)
+    start-slot: ${YACI_STORE_START_SLOT:160964954}
+    # Cardano node connection (n2c) - using default configs
     n2c:
       host: ${CARDANO_NODE_HOST:localhost}
       port: ${CARDANO_NODE_PORT:1337}
-      protocol: n2c
-    
-    # Store configurations
-    utxo:
-      enabled: true
-    transaction:
-      enabled: true
-    metadata:
-      enabled: true
-    script:
-      enabled: true
 
 # Treasury Contract Configuration
 treasury:
