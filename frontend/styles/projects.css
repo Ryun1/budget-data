@@ -1,0 +1,370 @@
+/* Projects Grid */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Project Card */
+.project-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s;
+}
+
+.project-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.project-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.project-id {
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: #666;
+  background: #f5f5f5;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+}
+
+.project-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.project-status.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.project-status.completed {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.project-name {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.project-name a {
+  color: #1a1a1a;
+  text-decoration: none;
+}
+
+.project-name a:hover {
+  color: #0066cc;
+}
+
+.project-description {
+  color: #666;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+.project-stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.project-stats .stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-stats .stat-label {
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.project-stats .stat-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.project-vendor {
+  font-size: 0.875rem;
+  color: #666;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+}
+
+.project-vendor .label {
+  margin-right: 0.5rem;
+}
+
+.project-vendor code {
+  font-size: 0.8rem;
+  background: #f5f5f5;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+}
+
+/* Progress Bar */
+.progress-bar {
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar.large {
+  height: 12px;
+  border-radius: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #28a745;
+  transition: width 0.3s ease;
+  border-radius: inherit;
+}
+
+/* Progress Summary */
+.progress-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+/* Milestone Timeline */
+.milestone-timeline {
+  padding: 1rem 0;
+}
+
+.milestone-item {
+  display: flex;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+.milestone-item:last-child {
+  padding-bottom: 0;
+}
+
+.milestone-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.milestone-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px #e0e0e0;
+  z-index: 1;
+}
+
+.milestone-pending .milestone-dot {
+  background: #fff;
+  box-shadow: 0 0 0 2px #ffc107;
+}
+
+.milestone-completed .milestone-dot {
+  background: #28a745;
+  box-shadow: 0 0 0 2px #28a745;
+}
+
+.milestone-disbursed .milestone-dot {
+  background: #007bff;
+  box-shadow: 0 0 0 2px #007bff;
+}
+
+.milestone-line {
+  flex: 1;
+  width: 2px;
+  background: #e0e0e0;
+  margin-top: 4px;
+}
+
+.milestone-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.milestone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.milestone-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: #1a1a1a;
+}
+
+.milestone-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+.milestone-criteria {
+  color: #666;
+  font-size: 0.875rem;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+.milestone-transactions {
+  font-size: 0.8rem;
+}
+
+.milestone-tx {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.milestone-tx .tx-label {
+  color: #666;
+}
+
+.milestone-tx code {
+  background: #f5f5f5;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+.milestone-tx .tx-time {
+  color: #999;
+  font-size: 0.75rem;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tabs button {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #666;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tabs button.active {
+  color: #0066cc;
+  border-bottom-color: #0066cc;
+}
+
+.tabs button:hover {
+  color: #1a1a1a;
+}
+
+/* Search Input */
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #0066cc;
+}
+
+/* Project Info Grid */
+.project-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-item .label {
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.info-item .value {
+  font-size: 1rem;
+  color: #1a1a1a;
+}
+
+.info-item code {
+  font-size: 0.8rem;
+  background: #f5f5f5;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  word-break: break-all;
+}
+
+/* Project Overview */
+.project-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.project-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.project-instance {
+  font-size: 0.8rem;
+  color: #666;
+}

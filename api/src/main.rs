@@ -72,6 +72,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/fund", get(fund::list_fund_transactions))
         .route("/api/disburse", get(disburse::list_disburse_transactions))
         .route("/api/withdraw", get(withdraw::list_withdraw_transactions))
+        .route("/api/projects", get(projects::list_projects))
+        .route("/api/projects/:project_id", get(projects::get_project))
+        .route("/api/projects/:project_id/milestones", get(projects::get_project_milestones))
+        .route("/api/projects/:project_id/events", get(projects::get_project_events))
         .layer(Extension(pool))
         .layer(
             CorsLayer::new()

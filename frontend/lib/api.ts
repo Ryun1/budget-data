@@ -55,6 +55,65 @@ export interface FundFlow {
   metadata: any;
 }
 
+// Project (vendor contract) from /api/projects
+export interface Project {
+  project_id: string;
+  project_name: string | null;
+  description: string | null;
+  vendor_address: string | null;
+  milestone_count: number;
+  contract_instance: string | null;
+  fund_tx_hash: string;
+  created_slot: number | null;
+  created_time: number | null;
+  created_block: number | null;
+  // Contract address (PSSC) where project funds are locked
+  contract_address: string | null;
+}
+
+// Milestone from /api/projects/:id
+export interface Milestone {
+  project_id: string;
+  milestone_id: string;
+  milestone_label: string | null;
+  acceptance_criteria: string | null;
+  milestone_order: number;
+  status: 'pending' | 'completed' | 'disbursed';
+  complete_tx_hash: string | null;
+  complete_time: number | null;
+  disburse_tx_hash: string | null;
+  disburse_time: number | null;
+}
+
+// Project event
+export interface ProjectEvent {
+  tx_hash: string;
+  slot: number | null;
+  block_time: number | null;
+  event_type: string | null;
+  milestone_id: string | null;
+  metadata: any;
+}
+
+// Project UTXO
+export interface ProjectUtxo {
+  tx_hash: string;
+  output_index: number;
+  lovelace_amount: number;
+  slot: number;
+  block_number: number | null;
+}
+
+// Full project detail from /api/projects/:id
+export interface ProjectDetail {
+  project: Project;
+  balance_lovelace: number;
+  utxo_count: number;
+  milestones: Milestone[];
+  events: ProjectEvent[];
+  utxos: ProjectUtxo[];
+}
+
 export async function getStats(): Promise<Stats | null> {
   try {
     const response = await fetch(`${API_URL}/api/stats`);
@@ -190,6 +249,61 @@ export async function getWithdrawTransactions(params?: { page?: number; limit?: 
     return await response.json();
   } catch (error) {
     console.error('Error fetching withdraw transactions:', error);
+    return [];
+  }
+}
+
+export async function getProjects(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}): Promise<Project[]> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+
+    const queryString = queryParams.toString();
+    const url = `${API_URL}/api/projects${queryString ? `?${queryString}` : ''}`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    return [];
+  }
+}
+
+export async function getProject(projectId: string): Promise<ProjectDetail | null> {
+  try {
+    const response = await fetch(`${API_URL}/api/projects/${encodeURIComponent(projectId)}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    return null;
+  }
+}
+
+export async function getProjectMilestones(projectId: string): Promise<Milestone[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/projects/${encodeURIComponent(projectId)}/milestones`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching project milestones:', error);
+    return [];
+  }
+}
+
+export async function getProjectEvents(projectId: string): Promise<ProjectEvent[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/projects/${encodeURIComponent(projectId)}/events`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching project events:', error);
     return [];
   }
 }
