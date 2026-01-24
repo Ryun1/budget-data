@@ -170,6 +170,47 @@ SELECT * FROM vendor_contracts;
 SELECT * FROM fund_flows ORDER BY slot DESC LIMIT 5;
 ```
 
+## Deployment (Render)
+
+This project includes a Render blueprint for easy cloud deployment.
+
+### One-Click Deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+### Manual Deploy
+
+1. Fork this repository to your GitHub account
+
+2. Connect to Render:
+   - Go to [Render Dashboard](https://dashboard.render.com/)
+   - Click "New" → "Blueprint"
+   - Connect your GitHub repo
+   - Select the `render.yaml` blueprint
+
+3. Render will create:
+   - **treasury-db** - PostgreSQL database
+   - **treasury-api** - Rust API (auto-deploys on push)
+   - **treasury-indexer** - YACI Store indexer (manual deploy)
+
+4. After deployment:
+   - API: `https://treasury-api-xxxx.onrender.com/health`
+   - Indexer: `https://treasury-indexer-xxxx.onrender.com/actuator/health`
+
+### Resource Requirements
+
+| Service | Plan | Memory | Notes |
+|---------|------|--------|-------|
+| treasury-api | Starter | 512MB | Lightweight Rust binary |
+| treasury-indexer | Standard | 2GB | Needs memory for blockchain sync |
+| treasury-db | Starter | 1GB | Upgrade for production |
+
+### Environment Variables
+
+Set automatically by Render from the database:
+- `DATABASE_URL` - PostgreSQL connection string
+- `SPRING_DATASOURCE_URL` - JDBC connection for indexer
+
 ## Component Documentation
 
 - [API Documentation](api/README.md) - Full API reference

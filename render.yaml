@@ -1,0 +1,63 @@
+# Render Blueprint for Cardano Treasury Fund Tracking System
+# https://render.com/docs/blueprint-spec
+#
+# Deploy: Connect your GitHub repo to Render and select this blueprint
+# Or use: render blueprint apply
+#
+# After deployment:
+# 1. The indexer will start syncing from slot 160964954 (epoch 570)
+# 2. Initial sync takes time - monitor via /actuator/health endpoint
+# 3. API will be available immediately at /health
+
+services:
+  # Treasury API - Rust backend for querying treasury data
+  - type: web
+    name: treasury-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: treasury-db
+          property: connectionString
+      - key: RUST_LOG
+        value: info
+    autoDeploy: true
+
+  # YACI Store Indexer - Syncs Cardano blockchain data
+  # Note: This is a long-running service that syncs blockchain data
+  # It needs more resources than the API
+  - type: web
+    name: treasury-indexer
+    runtime: docker
+    dockerfilePath: ./indexer/Dockerfile.render
+    region: oregon
+    plan: standard  # Needs more memory for blockchain sync
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: JAVA_OPTS
+        value: -Xmx1536m -Xms512m -XX:+UseG1GC
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: treasury-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: treasury-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: treasury-db
+          property: password
+    autoDeploy: false  # Manual deploy to control sync restarts
+
+databases:
+  # PostgreSQL database for storing blockchain and treasury data
+  - name: treasury-db
+    plan: starter  # 1GB storage, upgrade to standard for production
+    region: oregon
+    postgresMajorVersion: 14
+    ipAllowList: []  # Only internal connections allowed

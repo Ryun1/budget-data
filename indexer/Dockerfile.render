@@ -1,0 +1,15 @@
+# Render-compatible Dockerfile for YACI Store Indexer
+FROM bloxbean/yaci-store:2.0.0-beta5
+
+# Install envsubst for environment variable substitution
+USER root
+RUN apt-get update && apt-get install -y gettext-base && rm -rf /var/lib/apt/lists/*
+
+# Copy configuration and startup script
+COPY application.render.properties /app/config/application.properties.template
+COPY render-entrypoint.sh /app/render-entrypoint.sh
+RUN chmod +x /app/render-entrypoint.sh
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/render-entrypoint.sh"]
