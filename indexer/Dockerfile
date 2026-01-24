@@ -1,10 +1,21 @@
-FROM maven:3.9-eclipse-temurin-21 AS build
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
-
 FROM eclipse-temurin:21-jre-alpine
+
 WORKDIR /app
-COPY --from=build /app/target/treasury-indexer-1.0.0.jar app.jar
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# Install netcat for health checks
+RUN apk add --no-cache netcat-openbsd
+
+# Copy YACI Store JAR
+COPY yaci-store.jar yaci-store.jar
+
+# Copy configuration files
+COPY application.properties /app/application.properties
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+
+# Make entrypoint executable
+RUN chmod +x /app/docker-entrypoint.sh
+
+# Expose YACI Store API port
+EXPOSE 8080
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

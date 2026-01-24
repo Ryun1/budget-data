@@ -3,60 +3,61 @@ version: '3.8'
 services:
   postgres:
     image: postgres:14-alpine
+    container_name: treasury-postgres
     environment:
       POSTGRES_DB: treasury_data
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Use 5433 on host to avoid conflict with local PostgreSQL
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d treasury_data"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - treasury-network
 
   indexer:
-    build:
-      context: ./indexer
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: jdbc:postgresql://postgres:5432/treasury_data
-      DATABASE_USERNAME: postgres
-      DATABASE_PASSWORD: postgres
-      CARDANO_NODE_HOST: ${CARDANO_NODE_HOST:-localhost}
-      CARDANO_NODE_PORT: ${CARDANO_NODE_PORT:-1337}
+    image: bloxbean/yaci-store:2.0.0-beta5
+    container_name: treasury-indexer
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      - JAVA_OPTS=-Xmx2g -Xms1g
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./indexer/application.properties:/app/config/application.properties:ro
+      - ./indexer/logs:/app/logs
     restart: unless-stopped
+    networks:
+      - treasury-network
 
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/treasury_data
-      PORT: 8080
-    ports:
-      - "8080:8080"
+    container_name: treasury-api
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/treasury_data
+      - RUST_LOG=info
     ports:
-      - "3000:3000"
-    depends_on:
-      - api
+      - "8080:8080"
     restart: unless-stopped
+    networks:
+      - treasury-network
 
 volumes:
   postgres_data:
+
+networks:
+  treasury-network:
+    driver: bridge
