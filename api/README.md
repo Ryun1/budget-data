@@ -2,6 +2,13 @@
 
 Rust-based REST API for querying Cardano treasury fund tracking data. Built with Axum framework and SQLx for PostgreSQL.
 
+## Architecture
+
+The API queries data from YACI Store's indexed blockchain data:
+- **UTXOs**: Treasury contract UTXOs (filtered by stake credential)
+- **Metadata**: TOM (Treasury Oversight Metadata) with label 1694
+- **Blocks**: Blockchain synchronization data
+
 ## Quick Start
 
 ```bash
@@ -38,17 +45,21 @@ Get aggregated statistics about treasury operations.
 **Response:**
 ```json
 {
-  "total_transactions": 42,
-  "total_funds": "1500000.000000",
-  "active_vendor_contracts": 5
+  "tom_transactions": 21,
+  "total_balance": "264568247.000000",
+  "total_balance_lovelace": 264568247000000,
+  "treasury_addresses": 1,
+  "latest_block": 12296746
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `total_transactions` | integer | Total number of treasury transactions |
-| `total_funds` | string | Total unspent funds in ADA |
-| `active_vendor_contracts` | integer | Number of active vendor contracts |
+| `tom_transactions` | integer | Number of TOM metadata transactions |
+| `total_balance` | string | Total treasury balance in ADA |
+| `total_balance_lovelace` | integer | Total treasury balance in lovelace |
+| `treasury_addresses` | integer | Number of unique treasury addresses |
+| `latest_block` | integer | Latest synced block number |
 
 ---
 
@@ -56,13 +67,13 @@ Get aggregated statistics about treasury operations.
 
 #### `GET /api/balance`
 
-Get current treasury balance from unspent UTXOs.
+Get current treasury balance from UTXOs.
 
 **Response:**
 ```json
 {
-  "balance": "1500000.000000",
-  "lovelace": 1500000000000
+  "balance": "264568247.000000",
+  "lovelace": 264568247000000
 }
 ```
 
@@ -73,11 +84,11 @@ Get current treasury balance from unspent UTXOs.
 
 ---
 
-### Transactions
+### Transactions (TOM Metadata)
 
 #### `GET /api/transactions`
 
-List treasury transactions with optional filtering and pagination.
+List TOM transactions (transactions with label 1694 metadata).
 
 **Query Parameters:**
 
@@ -85,13 +96,11 @@ List treasury transactions with optional filtering and pagination.
 |-----------|------|---------|-------------|
 | `page` | integer | 1 | Page number (1-indexed) |
 | `limit` | integer | 50 | Results per page (max: 100) |
-| `action_type` | string | - | Filter by action type: `Fund`, `Disburse`, `Withdraw`, etc. |
-| `date_from` | string | - | Filter transactions from this date (ISO 8601) |
-| `date_to` | string | - | Filter transactions until this date (ISO 8601) |
+| `action_type` | string | - | Filter by event type: `fund`, `disburse`, `withdraw`, `complete`, `initialize`, etc. |
 
 **Example:**
 ```bash
-curl "http://localhost:8080/api/transactions?page=1&limit=10&action_type=Fund"
+curl "http://localhost:8080/api/transactions?page=1&limit=10&action_type=fund"
 ```
 
 **Response:**
@@ -102,16 +111,23 @@ curl "http://localhost:8080/api/transactions?page=1&limit=10&action_type=Fund"
     "slot": 160964954,
     "block_number": 12125945,
     "block_time": 1704067200,
-    "action_type": "Fund",
-    "amount": "1000000000000",
-    "metadata": { "purpose": "Initial funding" }
+    "action_type": "fund",
+    "metadata": {
+      "@context": [...],
+      "body": {
+        "event": "fund",
+        "milestones": {...}
+      },
+      "instance": "9e65e4ed...",
+      "txAuthor": "e0b68e22..."
+    }
   }
 ]
 ```
 
 #### `GET /api/transactions/:tx_hash`
 
-Get a specific transaction by hash.
+Get a specific TOM transaction by hash.
 
 **Path Parameters:**
 
@@ -121,33 +137,31 @@ Get a specific transaction by hash.
 
 **Example:**
 ```bash
-curl "http://localhost:8080/api/transactions/abc123..."
+curl "http://localhost:8080/api/transactions/182f8efed8110d65708cf2d03d4946238b32bad661536e463e90427d1af1d666"
 ```
-
-**Response:** Same as single transaction object above.
 
 **Errors:**
 - `404 Not Found` - Transaction not found
 
 ---
 
-### Action-Specific Transactions
+### Event-Specific Transactions
 
-These endpoints return transactions filtered by action type with the same pagination options.
+These endpoints return TOM transactions filtered by event type.
 
 #### `GET /api/fund`
 
-List all Fund transactions (incoming treasury funds).
+List Fund transactions (funding events).
 
 #### `GET /api/disburse`
 
-List all Disburse transactions (disbursements to vendors).
+List Disburse transactions (disbursement events).
 
 #### `GET /api/withdraw`
 
-List all Withdraw transactions (withdrawals from treasury).
+List Withdraw transactions (withdrawal events).
 
-**Query Parameters:** Same as `/api/transactions`
+**Query Parameters:** Same as `/api/transactions` (without `action_type`)
 
 ---
 
@@ -155,7 +169,7 @@ List all Withdraw transactions (withdrawals from treasury).
 
 #### `GET /api/utxos`
 
-List unspent transaction outputs (UTXOs) held by the treasury.
+List treasury UTXOs (filtered by stake credential).
 
 **Response:**
 ```json
@@ -163,10 +177,10 @@ List unspent transaction outputs (UTXOs) held by the treasury.
   {
     "tx_hash": "abc123...",
     "output_index": 0,
-    "owner_addr": "addr1...",
-    "lovelace_amount": 1000000000000,
+    "owner_addr": "addr1xxzc8pt7fgf0lc0x7eq6z7z6puhsxmzktna7dluahrj6g6v9swzhujsjlls7dajp59u95re0qdk9vh8mumlemw89535s4ecqxj",
+    "lovelace_amount": 264568247000000,
     "slot": 160964954,
-    "is_spent": false
+    "block_number": 12125945
   }
 ]
 ```
@@ -178,44 +192,36 @@ List unspent transaction outputs (UTXOs) held by the treasury.
 | `owner_addr` | string | Bech32 address owning the UTXO |
 | `lovelace_amount` | integer | Amount in lovelace |
 | `slot` | integer | Slot when UTXO was created |
-| `is_spent` | boolean | Whether UTXO has been spent |
+| `block_number` | integer | Block number when UTXO was created |
 
 ---
 
-### Vendor Contracts
+### Treasury Addresses
 
 #### `GET /api/vendor-contracts`
 
-List vendor contracts receiving disbursements from treasury.
+List treasury addresses (aggregated by address with balances).
 
 **Response:**
 ```json
 [
   {
-    "id": 1,
-    "contract_address": "addr1...",
-    "vendor_name": "Vendor A",
-    "project_name": "Project X",
-    "project_code": "PX001",
-    "treasury_contract_address": "addr1...",
-    "current_balance_lovelace": 500000000000,
-    "status": "active",
-    "created_at_slot": 160964954
+    "address": "addr1xxzc8pt7fgf0lc0x7eq6z7z6puhsxmzktna7dluahrj6g6v9swzhujsjlls7dajp59u95re0qdk9vh8mumlemw89535s4ecqxj",
+    "stake_credential": "8583857e4a12ffe1e6f641a1785a0f2f036c565cfbe6ff9db8e5a469",
+    "balance_lovelace": 264568247000000,
+    "utxo_count": 34,
+    "latest_slot": 163964156
   }
 ]
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | integer | Unique identifier |
-| `contract_address` | string | Vendor's contract address |
-| `vendor_name` | string | Name of the vendor |
-| `project_name` | string | Name of the project |
-| `project_code` | string | Project identifier code |
-| `treasury_contract_address` | string | Parent treasury contract |
-| `current_balance_lovelace` | integer | Current balance in lovelace |
-| `status` | string | Contract status: `active`, `paused`, `completed`, `cancelled` |
-| `created_at_slot` | integer | Slot when contract was created |
+| `address` | string | Bech32 treasury/vendor address |
+| `stake_credential` | string | Stake credential hash |
+| `balance_lovelace` | integer | Current balance in lovelace |
+| `utxo_count` | integer | Number of UTXOs at this address |
+| `latest_slot` | integer | Most recent slot with activity |
 
 ---
 
@@ -223,36 +229,51 @@ List vendor contracts receiving disbursements from treasury.
 
 #### `GET /api/fund-flows`
 
-List fund flow records tracking movement between addresses.
+List fund flow records extracted from TOM metadata.
 
 **Response:**
 ```json
 [
   {
-    "id": 1,
     "tx_hash": "abc123...",
     "slot": 160964954,
-    "block_time": "2024-01-01T00:00:00Z",
-    "source_address": "addr1...",
-    "destination_address": "addr1...",
-    "amount_lovelace": 1000000000000,
-    "flow_type": "Disburse",
-    "metadata": { "milestone": 1 }
+    "block_number": 12125945,
+    "block_time": 1704067200,
+    "action_type": "fund",
+    "destination": "Sundae Labs",
+    "metadata": {...}
   }
 ]
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | integer | Unique identifier |
 | `tx_hash` | string | Transaction hash |
 | `slot` | integer | Cardano slot number |
-| `block_time` | string | ISO 8601 timestamp |
-| `source_address` | string | Source address |
-| `destination_address` | string | Destination address |
-| `amount_lovelace` | integer | Transfer amount in lovelace |
-| `flow_type` | string | Type of flow: `Fund`, `Disburse`, `Withdraw`, `Sweep` |
-| `metadata` | object | Additional metadata (nullable) |
+| `block_number` | integer | Block number |
+| `block_time` | integer | Unix timestamp |
+| `action_type` | string | Event type from TOM metadata |
+| `destination` | string | Destination label (if available) |
+| `metadata` | object | Full TOM metadata body |
+
+---
+
+## TOM Metadata Event Types
+
+The API tracks the following Treasury Oversight Metadata events (label 1694):
+
+| Event | Description |
+|-------|-------------|
+| `initialize` | Initialize a vendor contract |
+| `fund` | Fund a vendor contract from treasury |
+| `disburse` | Disburse funds from vendor contract |
+| `withdraw` | Withdraw funds |
+| `complete` | Complete a milestone |
+| `pause` | Pause a contract |
+| `resume` | Resume a paused contract |
+| `modify` | Modify contract parameters |
+| `cancel` | Cancel a contract |
+| `sweep` | Sweep remaining funds |
 
 ---
 
@@ -265,8 +286,6 @@ All endpoints return standard HTTP status codes:
 | `200 OK` | Request successful |
 | `404 Not Found` | Resource not found |
 | `500 Internal Server Error` | Database or server error |
-
-Error responses include no body for simplicity.
 
 ---
 
@@ -320,11 +339,18 @@ docker run -p 8080:8080 \
 
 ## Database Schema
 
-The API reads from these custom tables (created separately from YACI Store tables):
+The API queries the YACI Store schema (`yaci_store`):
 
-- `treasury_transactions` - Parsed treasury transactions with action types
-- `treasury_utxos` - Treasury UTXO tracking
-- `vendor_contracts` - Vendor contract registry
-- `fund_flows` - Fund movement tracking
+| Table | Description |
+|-------|-------------|
+| `yaci_store.block` | Blockchain blocks |
+| `yaci_store.address_utxo` | Treasury UTXOs (filtered by plugin) |
+| `yaci_store.transaction_metadata` | TOM metadata (label 1694 only) |
 
-See `database/migrations/` for full schema definitions.
+### Plugin Filtering
+
+The YACI Store indexer uses plugins to filter data:
+- **UTXOs**: Only addresses with treasury stake credential
+- **Metadata**: Only label 1694 (TOM standard)
+
+This reduces database size significantly while keeping all treasury-relevant data.

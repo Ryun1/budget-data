@@ -1,0 +1,38 @@
+store:
+  plugins:
+    enabled: true
+    exit-on-error: false
+    metrics-enabled: true
+
+    filters:
+      # Only store UTXOs for treasury-related addresses
+      utxo.unspent.save:
+        - name: "Treasury UTXO Filter"
+          lang: mvel
+          script:
+            file: /app/plugins/scripts/treasury-filter.mvel
+            function: filterUtxos
+
+      # Only store metadata with label 1694 (TOM standard)
+      metadata.save:
+        - name: "TOM Metadata Filter"
+          lang: mvel
+          expression: label == "1694"
+
+      # Transaction filtering disabled - inputs are UtxoKey objects without address info
+      # UTXO + metadata filtering is sufficient to reduce data storage
+      # transaction.save:
+      #   - name: "Treasury Transaction Filter"
+      #     lang: mvel
+      #     script:
+      #       file: /app/plugins/scripts/treasury-filter.mvel
+      #       function: filterTransactions
+
+    # Post-action to track discovered vendor addresses
+    post-actions:
+      metadata.save:
+        - name: "Vendor Address Discovery"
+          lang: mvel
+          script:
+            file: /app/plugins/scripts/treasury-filter.mvel
+            function: discoverVendorAddresses

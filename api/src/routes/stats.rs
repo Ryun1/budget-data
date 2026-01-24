@@ -8,17 +8,24 @@ use sqlx::PgPool;
 
 #[derive(Serialize)]
 pub struct StatsResponse {
-    total_transactions: i64,
-    total_funds: String,
-    active_vendor_contracts: i64,
+    /// Number of TOM transactions (with label 1694 metadata)
+    tom_transactions: i64,
+    /// Total balance in treasury UTXOs (ADA)
+    total_balance: String,
+    /// Total balance in lovelace
+    total_balance_lovelace: i64,
+    /// Number of unique treasury addresses tracked
+    treasury_addresses: i64,
+    /// Latest synced block number
+    latest_block: Option<i64>,
 }
 
 pub async fn get_stats(
     Extension(pool): Extension<PgPool>,
 ) -> Result<Json<StatsResponse>, StatusCode> {
-    // Get total transactions count
-    let total_tx_result = sqlx::query_as::<_, (i64,)>(
-        "SELECT COUNT(*) FROM treasury_transactions"
+    // Get TOM transactions count (label 1694 metadata)
+    let tom_tx_result = sqlx::query_as::<_, (i64,)>(
+        "SELECT COUNT(DISTINCT tx_hash) FROM yaci_store.transaction_metadata WHERE label = '1694'"
     )
     .fetch_one(&pool)
     .await
@@ -27,9 +34,9 @@ pub async fn get_stats(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Get total funds (sum of unspent UTXOs)
+    // Get total funds (sum of treasury UTXOs)
     let total_funds_result = sqlx::query_as::<_, (i64,)>(
-        "SELECT CAST(COALESCE(SUM(lovelace_amount), 0) AS BIGINT) FROM treasury_utxos WHERE is_spent = false"
+        "SELECT CAST(COALESCE(SUM(lovelace_amount), 0) AS BIGINT) FROM yaci_store.address_utxo"
     )
     .fetch_one(&pool)
     .await
@@ -38,9 +45,20 @@ pub async fn get_stats(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Get active vendor contracts count
-    let vendor_contracts_result = sqlx::query_as::<_, (i64,)>(
-        "SELECT COUNT(*) FROM vendor_contracts WHERE status = 'active'"
+    // Get count of unique treasury addresses
+    let addresses_result = sqlx::query_as::<_, (i64,)>(
+        "SELECT COUNT(DISTINCT owner_addr) FROM yaci_store.address_utxo"
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database query error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Get latest block number
+    let latest_block_result = sqlx::query_as::<_, (Option<i64>,)>(
+        "SELECT MAX(number) FROM yaci_store.block"
     )
     .fetch_one(&pool)
     .await
@@ -53,8 +71,10 @@ pub async fn get_stats(
     let total_funds = format!("{:.6}", total_funds_lovelace as f64 / 1_000_000.0);
 
     Ok(Json(StatsResponse {
-        total_transactions: total_tx_result.0,
-        total_funds,
-        active_vendor_contracts: vendor_contracts_result.0,
+        tom_transactions: tom_tx_result.0,
+        total_balance: total_funds,
+        total_balance_lovelace: total_funds_lovelace,
+        treasury_addresses: addresses_result.0,
+        latest_block: latest_block_result.0,
     }))
 }

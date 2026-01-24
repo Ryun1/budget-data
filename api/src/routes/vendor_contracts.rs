@@ -6,27 +6,40 @@ use axum::{
 use serde::Serialize;
 use sqlx::PgPool;
 
+/// Treasury address with aggregated balance
+/// Note: With plugin filtering, only treasury-related addresses are stored
 #[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct VendorContract {
-    pub id: i64,
-    pub contract_address: String,
-    pub vendor_name: Option<String>,
-    pub project_name: Option<String>,
-    pub project_code: Option<String>,
-    pub treasury_contract_address: Option<String>,
-    pub current_balance_lovelace: i64,
-    pub status: String,
-    pub created_at_slot: Option<i64>,
+pub struct TreasuryAddress {
+    /// Bech32 address
+    pub address: String,
+    /// Stake credential (shared across treasury contracts)
+    pub stake_credential: Option<String>,
+    /// Total balance in lovelace
+    pub balance_lovelace: i64,
+    /// Number of UTXOs at this address
+    pub utxo_count: i64,
+    /// Most recent slot with activity
+    pub latest_slot: Option<i64>,
 }
 
+/// List treasury addresses (vendor contracts and treasury reserve)
+/// These are addresses filtered by the YACI Store plugin to only include
+/// addresses with the treasury stake credential
 pub async fn list_vendor_contracts(
     Extension(pool): Extension<PgPool>,
-) -> Result<Json<Vec<VendorContract>>, StatusCode> {
-    let contracts = sqlx::query_as::<_, VendorContract>(
-        "SELECT id, contract_address, vendor_name, project_name, project_code,
-         treasury_contract_address, current_balance_lovelace, status, created_at_slot
-         FROM vendor_contracts
-         ORDER BY created_at_slot DESC"
+) -> Result<Json<Vec<TreasuryAddress>>, StatusCode> {
+    let addresses = sqlx::query_as::<_, TreasuryAddress>(
+        r#"
+        SELECT
+            owner_addr as address,
+            owner_stake_credential as stake_credential,
+            SUM(lovelace_amount)::bigint as balance_lovelace,
+            COUNT(*)::bigint as utxo_count,
+            MAX(slot) as latest_slot
+        FROM yaci_store.address_utxo
+        GROUP BY owner_addr, owner_stake_credential
+        ORDER BY balance_lovelace DESC
+        "#
     )
     .fetch_all(&pool)
     .await
@@ -35,5 +48,5 @@ pub async fn list_vendor_contracts(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok(Json(contracts))
+    Ok(Json(addresses))
 }

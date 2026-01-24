@@ -9,20 +9,20 @@ use sqlx::PgPool;
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Utxo {
     pub tx_hash: String,
-    pub output_index: i32,
-    pub owner_addr: String,
-    pub lovelace_amount: i64,
-    pub slot: i64,
-    pub is_spent: bool,
+    pub output_index: i16,
+    pub owner_addr: Option<String>,
+    pub lovelace_amount: Option<i64>,
+    pub slot: Option<i64>,
+    pub block_number: Option<i64>,
 }
 
 pub async fn list_utxos(
     Extension(pool): Extension<PgPool>,
 ) -> Result<Json<Vec<Utxo>>, StatusCode> {
+    // Query from yaci_store.address_utxo (already filtered to treasury addresses by plugin)
     let utxos = sqlx::query_as::<_, Utxo>(
-        "SELECT tx_hash, output_index, owner_addr, lovelace_amount, slot, is_spent
-         FROM treasury_utxos
-         WHERE is_spent = false
+        "SELECT tx_hash, output_index, owner_addr, lovelace_amount, slot, block as block_number
+         FROM yaci_store.address_utxo
          ORDER BY slot DESC
          LIMIT 100"
     )

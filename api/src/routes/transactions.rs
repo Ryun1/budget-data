@@ -13,10 +13,9 @@ pub struct TransactionQuery {
     page: Option<u32>,
     limit: Option<u32>,
     action_type: Option<String>,
-    date_from: Option<String>,
-    date_to: Option<String>,
 }
 
+/// List TOM transactions (transactions with label 1694 metadata)
 pub async fn list_transactions(
     Extension(pool): Extension<PgPool>,
     Query(params): Query<TransactionQuery>,
@@ -25,74 +24,80 @@ pub async fn list_transactions(
     let limit = params.limit.unwrap_or(50).min(100);
     let offset = ((page - 1) * limit) as i64;
 
-    // Build query dynamically based on filters
-    let mut query = String::from(
-        "SELECT tx_hash, slot, block_number, 
-         EXTRACT(EPOCH FROM block_time)::bigint as block_time,
-         action_type, amount_lovelace::text as amount, metadata
-         FROM treasury_transactions"
-    );
-    
-    let mut conditions = Vec::new();
-    let mut bind_index = 1;
-    
-    if let Some(_) = &params.action_type {
-        conditions.push(format!("action_type = ${}", bind_index));
-        bind_index += 1;
-    }
-    
-    if let Some(_) = &params.date_from {
-        conditions.push(format!("block_time >= ${}::timestamp", bind_index));
-        bind_index += 1;
-    }
-    
-    if let Some(_) = &params.date_to {
-        conditions.push(format!("block_time <= ${}::timestamp", bind_index));
-        bind_index += 1;
-    }
-
-    if !conditions.is_empty() {
-        query.push_str(" WHERE ");
-        query.push_str(&conditions.join(" AND "));
-    }
-
-    query.push_str(&format!(" ORDER BY slot DESC LIMIT ${} OFFSET ${}", bind_index, bind_index + 1));
-
-    // Execute query with parameters
-    let mut query_builder = sqlx::query_as::<_, Transaction>(&query);
-    
-    if let Some(action_type) = &params.action_type {
-        query_builder = query_builder.bind(action_type);
-    }
-    if let Some(date_from) = &params.date_from {
-        query_builder = query_builder.bind(date_from);
-    }
-    if let Some(date_to) = &params.date_to {
-        query_builder = query_builder.bind(date_to);
-    }
-    query_builder = query_builder.bind(limit as i64).bind(offset);
-
-    let transactions = query_builder
+    let transactions = if let Some(action_type) = &params.action_type {
+        // Filter by action type extracted from metadata body (cast text to jsonb)
+        sqlx::query_as::<_, Transaction>(
+            r#"
+            SELECT
+                m.tx_hash,
+                m.slot,
+                b.number as block_number,
+                b.block_time,
+                m.body::jsonb->'body'->>'event' as action_type,
+                m.body::jsonb as metadata
+            FROM yaci_store.transaction_metadata m
+            LEFT JOIN yaci_store.block b ON m.slot = b.slot
+            WHERE m.label = '1694'
+              AND LOWER(m.body::jsonb->'body'->>'event') = LOWER($1)
+            ORDER BY m.slot DESC
+            LIMIT $2 OFFSET $3
+            "#
+        )
+        .bind(action_type)
+        .bind(limit as i64)
+        .bind(offset)
         .fetch_all(&pool)
         .await
+    } else {
+        // Return all TOM transactions (cast text to jsonb)
+        sqlx::query_as::<_, Transaction>(
+            r#"
+            SELECT
+                m.tx_hash,
+                m.slot,
+                b.number as block_number,
+                b.block_time,
+                m.body::jsonb->'body'->>'event' as action_type,
+                m.body::jsonb as metadata
+            FROM yaci_store.transaction_metadata m
+            LEFT JOIN yaci_store.block b ON m.slot = b.slot
+            WHERE m.label = '1694'
+            ORDER BY m.slot DESC
+            LIMIT $1 OFFSET $2
+            "#
+        )
+        .bind(limit as i64)
+        .bind(offset)
+        .fetch_all(&pool)
+        .await
+    };
+
+    transactions
+        .map(Json)
         .map_err(|e| {
             tracing::error!("Database query error: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    Ok(Json(transactions))
+        })
 }
 
+/// Get a specific TOM transaction by hash
 pub async fn get_transaction(
     Extension(pool): Extension<PgPool>,
     Path(tx_hash): Path<String>,
 ) -> Result<Json<Transaction>, StatusCode> {
     let transaction = sqlx::query_as::<_, Transaction>(
-        "SELECT tx_hash, slot, block_number,
-         EXTRACT(EPOCH FROM block_time)::bigint as block_time,
-         action_type, amount_lovelace::text as amount, metadata
-         FROM treasury_transactions
-         WHERE tx_hash = $1"
+        r#"
+        SELECT
+            m.tx_hash,
+            m.slot,
+            b.number as block_number,
+            b.block_time,
+            m.body::jsonb->'body'->>'event' as action_type,
+            m.body::jsonb as metadata
+        FROM yaci_store.transaction_metadata m
+        LEFT JOIN yaci_store.block b ON m.slot = b.slot
+        WHERE m.label = '1694' AND m.tx_hash = $1
+        "#
     )
     .bind(&tx_hash)
     .fetch_optional(&pool)
