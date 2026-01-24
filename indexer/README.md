@@ -1,31 +1,31 @@
-# Treasury Indexer
+# YACI Store Indexer
 
-Spring Boot application using YACI Store to index Cardano treasury contract transactions.
+This directory contains the YACI Store indexer setup for tracking Cardano treasury smart contract transactions.
+
+## Setup
+
+1. Download YACI Store JAR file:
+   - Visit https://github.com/bloxbean/yaci-store/releases
+   - Download the latest `yaci-store-all-*.jar` file
+   - Place it in this directory
+
+2. Configure `application.properties`:
+   - Update database connection details if needed
+   - Adjust sync start point if needed
+   - Modify store enable/disable flags as needed
+
+3. Build and run:
+   ```bash
+   docker build -t treasury-indexer .
+   docker run -d --name indexer --network treasury-network treasury-indexer
+   ```
 
 ## Configuration
 
-Set the following environment variables:
+The `application.properties` file is mounted as a volume in docker-compose, allowing you to edit it without rebuilding the container.
 
-- `DATABASE_URL` - PostgreSQL connection string
-- `DATABASE_USERNAME` - Database username
-- `DATABASE_PASSWORD` - Database password
-- `CARDANO_NODE_HOST` - Cardano node host (default: localhost)
-- `CARDANO_NODE_PORT` - Cardano node port (default: 1337)
+## Notes
 
-## Building
-
-```bash
-mvn clean package
-```
-
-## Running
-
-```bash
-java -jar target/treasury-indexer-1.0.0.jar
-```
-
-The indexer will start from slot 160964954 and track the treasury contract address, automatically discovering vendor contracts as projects are funded.
-
-## Database
-
-The indexer uses Flyway for database migrations. Tables are created automatically on startup.
+- The JAR file is not included in git (see .gitignore)
+- Make sure PostgreSQL is running before starting the indexer
+- Initial sync may take time depending on the start slot

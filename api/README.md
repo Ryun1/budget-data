@@ -1,47 +1,64 @@
-# Treasury API (Rust)
+# Treasury API Backend
 
-REST API backend for Cardano Treasury Budget Data, written in Rust using Axum.
+Rust-based REST API for querying Cardano treasury fund tracking data.
 
-## Features
+## Development
 
-- Fast async HTTP server using Axum
-- PostgreSQL database integration
-- JSON API endpoints for treasury data
-- CORS support
-- Query parameter parsing for pagination and filtering
+### Prerequisites
+
+- Rust 1.75+ (install via https://rustup.rs/)
+- PostgreSQL database (use docker-compose postgres service)
+
+### Setup
+
+1. Install dependencies:
+```bash
+cargo build
+```
+
+2. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your database connection details
+```
+
+3. Run the API:
+```bash
+cargo run
+```
+
+The API will start on `http://localhost:8080`
 
 ## Endpoints
 
 - `GET /health` - Health check
-- `GET /api/treasury` - Get treasury instance
-- `GET /api/projects` - List projects
-- `GET /api/projects/:id` - Get project details
-- `GET /api/transactions` - List transactions (supports `limit`, `offset`, `event_type`, `project_id` query params)
-- `GET /api/transactions/:hash` - Get transaction details
-- `GET /api/milestones` - List milestones
+- `GET /api/transactions` - List all transactions
+- `GET /api/transactions/:tx_hash` - Get transaction details
+- `GET /api/utxos` - List UTXOs
+- `GET /api/balance` - Get treasury balance
 - `GET /api/vendor-contracts` - List vendor contracts
-- `GET /api/events` - List events (supports `limit`, `offset`, `event_type`, `project_id` query params)
+- `GET /api/fund-flows` - List fund flows
+- `GET /api/stats` - Get statistics
+- `GET /api/fund` - List Fund transactions
+- `GET /api/disburse` - List Disburse transactions
+- `GET /api/withdraw` - List Withdraw transactions
 
-## Environment Variables
-
-- `DATABASE_URL` - PostgreSQL connection string (default: `postgresql://postgres:postgres@localhost:5432/treasury_data`)
-- `PORT` - Server port (default: 8080)
-
-## Building
+## Building for Production
 
 ```bash
 cargo build --release
 ```
 
-## Running
-
-```bash
-DATABASE_URL=postgresql://user:pass@localhost:5432/treasury_data cargo run
-```
-
 ## Docker
 
+Build the Docker image:
 ```bash
 docker build -t treasury-api .
-docker run -p 8080:8080 -e DATABASE_URL=... treasury-api
+```
+
+Run the container:
+```bash
+docker run -p 8080:8080 \
+  -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/treasury_data \
+  treasury-api
 ```
