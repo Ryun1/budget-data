@@ -48,10 +48,10 @@ services:
       # IMPORTANT: Update these URLs after the API is deployed
       # Replace with your actual API URL, e.g., https://treasury-api-xxxx.onrender.com
       - key: NEXT_PUBLIC_API_URL
-        value: https://treasury-api.onrender.com
+        value: https://treasury-api-unry.onrender.com
       # Server-side API URL (same as NEXT_PUBLIC_API_URL for Render)
       - key: API_URL
-        value: https://treasury-api.onrender.com
+        value: https://treasury-api-unry.onrender.com
     autoDeploy: true
 
   # YACI Store Indexer - Syncs Cardano blockchain data
