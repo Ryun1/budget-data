@@ -3,6 +3,10 @@ FROM bloxbean/yaci-store:2.0.0-beta5
 
 USER root
 
+# Install PostgreSQL client for potential schema initialization
+# Note: bloxbean/yaci-store is based on Red Hat UBI (uses microdnf)
+RUN microdnf install -y postgresql && microdnf clean all
+
 # Copy configuration and startup script
 COPY application.render.properties /app/config/application.properties.template
 COPY config/application-plugins.yml /app/config/application-plugins.yml
