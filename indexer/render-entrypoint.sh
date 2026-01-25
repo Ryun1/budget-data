@@ -34,6 +34,24 @@ if [ -n "$SPRING_DATASOURCE_URL" ]; then
     export SPRING_DATASOURCE_URL="$JDBC_URL"
     echo "Configured database: ${HOST_PORT_DB}"
     echo "Database user: ${SPRING_DATASOURCE_USERNAME}"
+
+    # Parse host and port for psql
+    DB_HOST=$(echo "$HOST_PORT_DB" | sed 's|:.*||')
+    DB_PORT_AND_NAME=$(echo "$HOST_PORT_DB" | sed 's|[^:]*:||')
+    DB_PORT=$(echo "$DB_PORT_AND_NAME" | sed 's|/.*||')
+    DB_NAME=$(echo "$DB_PORT_AND_NAME" | sed 's|[^/]*/||')
+
+    # Initialize database schema before starting app
+    echo "Initializing database schema..."
+    export PGPASSWORD="$SPRING_DATASOURCE_PASSWORD"
+
+    if psql -h "$DB_HOST" -p "$DB_PORT" -U "$SPRING_DATASOURCE_USERNAME" -d "$DB_NAME" -f /app/init-schema.sql; then
+        echo "Database schema initialized successfully"
+    else
+        echo "Warning: Schema initialization had errors (tables may already exist)"
+    fi
+
+    unset PGPASSWORD
 fi
 
 # Copy template to config

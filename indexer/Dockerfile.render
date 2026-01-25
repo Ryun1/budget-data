@@ -7,10 +7,11 @@ USER root
 # Note: bloxbean/yaci-store is based on Red Hat UBI (uses microdnf)
 RUN microdnf install -y postgresql && microdnf clean all
 
-# Copy configuration and startup script
+# Copy configuration, schema, and startup script
 COPY application.render.properties /app/config/application.properties.template
 COPY config/application-plugins.yml /app/config/application-plugins.yml
 COPY plugins/scripts/ /app/plugins/scripts/
+COPY init-schema.sql /app/init-schema.sql
 COPY render-entrypoint.sh /app/render-entrypoint.sh
 RUN chmod +x /app/render-entrypoint.sh
 
