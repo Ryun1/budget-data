@@ -189,11 +189,11 @@ pub struct Utxo {
     pub id: i32,
     pub tx_hash: String,
     pub output_index: i16,
-    pub address: String,
+    pub address: Option<String>,
     pub address_type: Option<String>,
     pub vendor_contract_id: Option<i32>,
-    pub lovelace_amount: i64,
-    pub slot: i64,
+    pub lovelace_amount: Option<i64>,
+    pub slot: Option<i64>,
     pub block_number: Option<i64>,
     pub spent: bool,
     pub spent_tx_hash: Option<String>,
@@ -205,8 +205,8 @@ pub struct Utxo {
 pub struct ProjectUtxo {
     pub tx_hash: String,
     pub output_index: i16,
-    pub lovelace_amount: i64,
-    pub slot: i64,
+    pub lovelace_amount: Option<i64>,
+    pub slot: Option<i64>,
     pub block_number: Option<i64>,
 }
 

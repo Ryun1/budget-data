@@ -5,16 +5,22 @@
 # Or use: render blueprint apply
 #
 # After deployment:
-# 1. The indexer will start syncing from slot 160964954 (epoch 570)
+# 1. The indexer will start syncing from the configured slot
 # 2. Initial sync takes time - monitor via /actuator/health endpoint
 # 3. API will be available immediately at /health
+# 4. Frontend will be available at the assigned URL
+#
+# IMPORTANT: After first deploy, update the treasury-frontend service's
+# NEXT_PUBLIC_API_URL build arg with the actual treasury-api URL
 
 services:
   # Treasury API - Rust backend for querying treasury data
+  # Deploy this first to get the URL for the frontend
   - type: web
     name: treasury-api
     runtime: docker
     dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
     region: oregon
     plan: starter
     healthCheckPath: /health
@@ -27,6 +33,34 @@ services:
         value: info
     autoDeploy: true
 
+  # Treasury Frontend - Next.js dashboard
+  - type: web
+    name: treasury-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    region: oregon
+    plan: starter
+    healthCheckPath: /api/health
+    buildCommand: ""
+    # Build args for Docker - update NEXT_PUBLIC_API_URL after API is deployed
+    dockerCommand: ""
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Runtime API URL fallback (not used by Next.js, but good for reference)
+      - key: API_URL
+        fromService:
+          name: treasury-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+    # Docker build args - set the API URL here
+    # After first deploy, update this with the actual API URL
+    # e.g., https://treasury-api-xxxx.onrender.com
+    dockerBuildArgs:
+      NEXT_PUBLIC_API_URL: https://treasury-api.onrender.com
+    autoDeploy: true
+
   # YACI Store Indexer - Syncs Cardano blockchain data
   # Note: This is a long-running service that syncs blockchain data
   # It needs more resources than the API
@@ -34,6 +68,7 @@ services:
     name: treasury-indexer
     runtime: docker
     dockerfilePath: ./indexer/Dockerfile.render
+    dockerContext: ./indexer
     region: oregon
     plan: standard  # Needs more memory for blockchain sync
     healthCheckPath: /actuator/health
@@ -52,12 +87,12 @@ services:
         fromDatabase:
           name: treasury-db
           property: password
-    autoDeploy: false  # Manual deploy to control sync restarts
+    autoDeploy: true
 
 databases:
   # PostgreSQL database for storing blockchain and treasury data
   - name: treasury-db
     plan: starter  # 1GB storage, upgrade to standard for production
     region: oregon
-    postgresMajorVersion: 14
+    postgresMajorVersion: 15
     ipAllowList: []  # Only internal connections allowed

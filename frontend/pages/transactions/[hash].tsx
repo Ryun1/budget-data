@@ -34,9 +34,7 @@ export default function TransactionDetail() {
           <nav className="nav">
             <Link href="/">Dashboard</Link>
             <Link href="/projects">Projects</Link>
-            <Link href="/transactions">Transactions</Link>
-            <Link href="/vendor-contracts">Treasury Addresses</Link>
-            <Link href="/events">Fund Flows</Link>
+            <Link href="/events">Fund Flow</Link>
           </nav>
         </div>
         <div className="container">Loading...</div>
@@ -52,16 +50,14 @@ export default function TransactionDetail() {
           <nav className="nav">
             <Link href="/">Dashboard</Link>
             <Link href="/projects">Projects</Link>
-            <Link href="/transactions">Transactions</Link>
-            <Link href="/vendor-contracts">Treasury Addresses</Link>
-            <Link href="/events">Fund Flows</Link>
+            <Link href="/events">Fund Flow</Link>
           </nav>
         </div>
         <div className="container">
           <div className="card">
             <p style={{ color: 'red' }}>{error || 'Transaction not found'}</p>
-            <Link href="/transactions" style={{ color: '#0066cc' }}>
-              ← Back to transactions
+            <Link href="/events" style={{ color: '#0066cc' }}>
+              ← Back to Fund Flow
             </Link>
           </div>
         </div>
@@ -75,9 +71,8 @@ export default function TransactionDetail() {
         <h1>Transaction Details</h1>
         <nav className="nav">
           <Link href="/">Dashboard</Link>
-          <Link href="/transactions">Transactions</Link>
-          <Link href="/vendor-contracts">Treasury Addresses</Link>
-          <Link href="/events">Fund Flows</Link>
+          <Link href="/projects">Projects</Link>
+          <Link href="/events">Fund Flow</Link>
         </nav>
       </div>
 
@@ -144,8 +139,8 @@ export default function TransactionDetail() {
         )}
 
         <div style={{ marginTop: '1rem' }}>
-          <Link href="/transactions" style={{ color: '#0066cc' }}>
-            ← Back to transactions
+          <Link href="/events" style={{ color: '#0066cc' }}>
+            ← Back to Fund Flow
           </Link>
         </div>
       </div>

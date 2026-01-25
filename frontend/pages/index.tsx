@@ -67,9 +67,7 @@ export default function Home() {
         <nav className="nav">
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
-          <Link href="/transactions">Transactions</Link>
-          <Link href="/vendor-contracts">Treasury Addresses</Link>
-          <Link href="/events">Fund Flows</Link>
+          <Link href="/events">Fund Flow</Link>
         </nav>
       </div>
 
@@ -135,8 +133,8 @@ export default function Home() {
           )}
           {transactions.length > 0 && (
             <div style={{ marginTop: '1rem' }}>
-              <Link href="/transactions" style={{ color: '#0066cc' }}>
-                View all transactions →
+              <Link href="/events" style={{ color: '#0066cc' }}>
+                View all fund flows →
               </Link>
             </div>
           )}

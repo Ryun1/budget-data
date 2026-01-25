@@ -36,13 +36,11 @@ export default function Events() {
   return (
     <div>
       <div className="header">
-        <h1>Fund Flows</h1>
+        <h1>Fund Flow</h1>
         <nav className="nav">
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
-          <Link href="/transactions">Transactions</Link>
-          <Link href="/vendor-contracts">Treasury Addresses</Link>
-          <Link href="/events">Fund Flows</Link>
+          <Link href="/events">Fund Flow</Link>
         </nav>
       </div>
 

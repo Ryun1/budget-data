@@ -33,7 +33,7 @@ export default function Projects() {
     setSearch(searchInput)
   }
 
-  const totalMilestones = projects.reduce((sum, p) => sum + p.milestone_count, 0)
+  const totalMilestones = projects.reduce((sum, p) => sum + (p.milestone_count || 0), 0)
 
   return (
     <div>
@@ -42,9 +42,7 @@ export default function Projects() {
         <nav className="nav">
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
-          <Link href="/transactions">Transactions</Link>
-          <Link href="/vendor-contracts">Treasury Addresses</Link>
-          <Link href="/events">Fund Flows</Link>
+          <Link href="/events">Fund Flow</Link>
         </nav>
       </div>
 
@@ -120,6 +118,8 @@ export default function Projects() {
               <ProjectCard
                 key={project.project_id}
                 project={project}
+                balance={project.current_balance || 0}
+                completedMilestones={project.completed_milestones || 0}
               />
             ))}
           </div>

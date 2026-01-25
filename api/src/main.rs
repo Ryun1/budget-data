@@ -57,6 +57,12 @@ async fn main() -> anyhow::Result<()> {
     let pool = pool.expect("Pool should be initialized after retries");
     tracing::info!("Database connection established");
 
+    // Initialize treasury schema (creates tables if they don't exist)
+    if let Err(e) = db::init_treasury_schema(&pool).await {
+        tracing::error!("Failed to initialize treasury schema: {}", e);
+        return Err(e.into());
+    }
+
     // Spawn background sync task
     let sync_pool = pool.clone();
     tokio::spawn(async move {

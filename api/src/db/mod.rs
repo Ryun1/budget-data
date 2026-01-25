@@ -2,3 +2,5 @@
 
 pub mod connection;
 pub mod queries;
+
+pub use connection::init_treasury_schema;

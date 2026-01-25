@@ -293,6 +293,39 @@ impl EventProcessor {
 
         self.insert_event(event, "fund", treasury_id, Some(vendor_contract_id), None, body).await?;
 
+        // Record the output UTXOs from this fund transaction for future lookups
+        // Get all outputs from the transaction table
+        let outputs: Option<serde_json::Value> = sqlx::query_scalar(
+            "SELECT outputs::jsonb FROM yaci_store.transaction WHERE tx_hash = $1"
+        )
+        .bind(&event.tx_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some(serde_json::Value::Array(output_arr)) = outputs {
+            for output in output_arr {
+                if let (Some(tx_hash), Some(output_index)) = (
+                    output.get("tx_hash").and_then(|h| h.as_str()),
+                    output.get("output_index").and_then(|i| i.as_i64())
+                ) {
+                    // Record this UTXO with the vendor_contract_id for future event lookups
+                    sqlx::query(
+                        r#"
+                        INSERT INTO treasury.utxos (tx_hash, output_index, vendor_contract_id, slot, spent)
+                        VALUES ($1, $2, $3, $4, false)
+                        ON CONFLICT (tx_hash, output_index) DO NOTHING
+                        "#
+                    )
+                    .bind(tx_hash)
+                    .bind(output_index as i16)
+                    .bind(vendor_contract_id)
+                    .bind(event.slot)
+                    .execute(&self.pool)
+                    .await?;
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -300,21 +333,30 @@ impl EventProcessor {
     async fn process_complete(&self, event: &RawTomEvent, body: &Value) -> anyhow::Result<()> {
         let event_body = body.get("body").unwrap_or(body);
 
-        let project_id = event_body.get("identifier")
+        // First try to get project_id from metadata (older format)
+        let project_id_from_meta = event_body.get("identifier")
             .and_then(|i| i.as_str())
-            .unwrap_or("");
+            .filter(|s| !s.is_empty());
 
-        // Get vendor contract ID
-        let vendor_contract_id: Option<i32> = sqlx::query_scalar(
-            "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
-        )
-        .bind(project_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        // Get vendor contract ID - either from metadata or by tracing tx chain
+        let vendor_contract_id: Option<i32> = if let Some(pid) = project_id_from_meta {
+            sqlx::query_scalar(
+                "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
+            )
+            .bind(pid)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            // Trace back through transaction chain to find the project
+            self.find_vendor_contract_from_inputs(&event.tx_hash).await?
+        };
 
         let vendor_contract_id = match vendor_contract_id {
             Some(id) => id,
-            None => return Ok(()), // Vendor contract not found, skip
+            None => {
+                tracing::debug!("Could not find vendor contract for complete event {}", event.tx_hash);
+                return Ok(());
+            }
         };
 
         // Process completed milestones
@@ -379,36 +421,35 @@ impl EventProcessor {
     async fn process_disburse(&self, event: &RawTomEvent, body: &Value) -> anyhow::Result<()> {
         let event_body = body.get("body").unwrap_or(body);
 
-        let project_id = event_body.get("identifier")
+        let project_id_from_meta = event_body.get("identifier")
             .and_then(|i| i.as_str())
-            .unwrap_or("");
+            .filter(|s| !s.is_empty());
 
         let destination = extract_text(event_body, "destination");
 
-        // Get vendor contract ID
-        let vendor_contract_id: Option<i32> = sqlx::query_scalar(
-            "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
+        // Get vendor contract ID - either from metadata or by tracing tx chain
+        let vendor_contract_id: Option<i32> = if let Some(pid) = project_id_from_meta {
+            sqlx::query_scalar(
+                "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
+            )
+            .bind(pid)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            self.find_vendor_contract_from_inputs(&event.tx_hash).await?
+        };
+
+        // Get disbursed amount from tx outputs - cast SUM to BIGINT
+        let disburse_amount: Option<i64> = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(lovelace_amount)::bigint, 0) FROM yaci_store.address_utxo WHERE tx_hash = $1 AND owner_addr NOT LIKE 'addr1x%'"
         )
-        .bind(project_id)
+        .bind(&event.tx_hash)
         .fetch_optional(&self.pool)
         .await?;
 
-        let vendor_contract_id = match vendor_contract_id {
-            Some(id) => id,
-            None => return Ok(()),
-        };
-
-        // Check for milestone field
-        if let Some(milestone_id) = event_body.get("milestone").and_then(|m| m.as_str()) {
-            // Get disbursed amount from tx outputs
-            let disburse_amount: Option<i64> = sqlx::query_scalar(
-                "SELECT SUM(lovelace_amount) FROM yaci_store.address_utxo WHERE tx_hash = $1 AND owner_addr NOT LIKE 'addr1x%'"
-            )
-            .bind(&event.tx_hash)
-            .fetch_optional(&self.pool)
-            .await?;
-
-            let db_milestone_id: Option<i32> = sqlx::query_scalar(
+        // Check for milestone field and update if present
+        let db_milestone_id: Option<i32> = if let (Some(vc_id), Some(milestone_id)) = (vendor_contract_id, event_body.get("milestone").and_then(|m| m.as_str())) {
+            sqlx::query_scalar(
                 r#"
                 UPDATE treasury.milestones
                 SET status = 'disbursed',
@@ -422,13 +463,16 @@ impl EventProcessor {
             .bind(&event.tx_hash)
             .bind(event.block_time)
             .bind(disburse_amount)
-            .bind(vendor_contract_id)
+            .bind(vc_id)
             .bind(milestone_id)
             .fetch_optional(&self.pool)
-            .await?;
+            .await?
+        } else {
+            None
+        };
 
-            self.insert_event_with_destination(event, "disburse", None, Some(vendor_contract_id), db_milestone_id, &destination, body).await?;
-        }
+        // Always insert the disburse event (may be treasury-level without vendor_contract)
+        self.insert_event_with_destination(event, "disburse", None, vendor_contract_id, db_milestone_id, &destination, body).await?;
 
         Ok(())
     }
@@ -437,19 +481,26 @@ impl EventProcessor {
     async fn process_withdraw(&self, event: &RawTomEvent, body: &Value) -> anyhow::Result<()> {
         let event_body = body.get("body").unwrap_or(body);
 
-        let project_id = event_body.get("identifier")
+        let project_id_from_meta = event_body.get("identifier")
             .and_then(|i| i.as_str())
-            .unwrap_or("");
+            .filter(|s| !s.is_empty());
 
-        let vendor_contract_id: Option<i32> = sqlx::query_scalar(
-            "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
-        )
-        .bind(project_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        // Get vendor contract ID - either from metadata or by tracing tx chain
+        let vendor_contract_id: Option<i32> = if let Some(pid) = project_id_from_meta {
+            sqlx::query_scalar(
+                "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
+            )
+            .bind(pid)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            self.find_vendor_contract_from_inputs(&event.tx_hash).await?
+        };
 
         if let Some(vc_id) = vendor_contract_id {
             self.insert_event(event, "withdraw", None, Some(vc_id), None, body).await?;
+        } else {
+            tracing::debug!("Could not find vendor contract for withdraw event {}", event.tx_hash);
         }
 
         Ok(())
@@ -459,20 +510,36 @@ impl EventProcessor {
     async fn process_pause(&self, event: &RawTomEvent, body: &Value) -> anyhow::Result<()> {
         let event_body = body.get("body").unwrap_or(body);
 
-        let project_id = event_body.get("identifier")
+        let project_id_from_meta = event_body.get("identifier")
             .and_then(|i| i.as_str())
-            .unwrap_or("");
+            .filter(|s| !s.is_empty());
         let reason = extract_text(event_body, "reason");
 
-        let vendor_contract_id: Option<i32> = sqlx::query_scalar(
-            "UPDATE treasury.vendor_contracts SET status = 'paused' WHERE project_id = $1 RETURNING id"
-        )
-        .bind(project_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        // Get vendor contract ID - either from metadata or by tracing tx chain
+        let vendor_contract_id: Option<i32> = if let Some(pid) = project_id_from_meta {
+            sqlx::query_scalar(
+                "UPDATE treasury.vendor_contracts SET status = 'paused' WHERE project_id = $1 RETURNING id"
+            )
+            .bind(pid)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            // Find via tx chain first, then update
+            if let Some(vc_id) = self.find_vendor_contract_from_inputs(&event.tx_hash).await? {
+                sqlx::query("UPDATE treasury.vendor_contracts SET status = 'paused' WHERE id = $1")
+                    .bind(vc_id)
+                    .execute(&self.pool)
+                    .await?;
+                Some(vc_id)
+            } else {
+                None
+            }
+        };
 
         if let Some(vc_id) = vendor_contract_id {
             self.insert_event_with_reason(event, "pause", None, Some(vc_id), None, &reason, body).await?;
+        } else {
+            tracing::debug!("Could not find vendor contract for pause event {}", event.tx_hash);
         }
 
         Ok(())
@@ -482,19 +549,34 @@ impl EventProcessor {
     async fn process_resume(&self, event: &RawTomEvent, body: &Value) -> anyhow::Result<()> {
         let event_body = body.get("body").unwrap_or(body);
 
-        let project_id = event_body.get("identifier")
+        let project_id_from_meta = event_body.get("identifier")
             .and_then(|i| i.as_str())
-            .unwrap_or("");
+            .filter(|s| !s.is_empty());
 
-        let vendor_contract_id: Option<i32> = sqlx::query_scalar(
-            "UPDATE treasury.vendor_contracts SET status = 'active' WHERE project_id = $1 RETURNING id"
-        )
-        .bind(project_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        // Get vendor contract ID - either from metadata or by tracing tx chain
+        let vendor_contract_id: Option<i32> = if let Some(pid) = project_id_from_meta {
+            sqlx::query_scalar(
+                "UPDATE treasury.vendor_contracts SET status = 'active' WHERE project_id = $1 RETURNING id"
+            )
+            .bind(pid)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            if let Some(vc_id) = self.find_vendor_contract_from_inputs(&event.tx_hash).await? {
+                sqlx::query("UPDATE treasury.vendor_contracts SET status = 'active' WHERE id = $1")
+                    .bind(vc_id)
+                    .execute(&self.pool)
+                    .await?;
+                Some(vc_id)
+            } else {
+                None
+            }
+        };
 
         if let Some(vc_id) = vendor_contract_id {
             self.insert_event(event, "resume", None, Some(vc_id), None, body).await?;
+        } else {
+            tracing::debug!("Could not find vendor contract for resume event {}", event.tx_hash);
         }
 
         Ok(())
@@ -504,20 +586,27 @@ impl EventProcessor {
     async fn process_modify(&self, event: &RawTomEvent, body: &Value) -> anyhow::Result<()> {
         let event_body = body.get("body").unwrap_or(body);
 
-        let project_id = event_body.get("identifier")
+        let project_id_from_meta = event_body.get("identifier")
             .and_then(|i| i.as_str())
-            .unwrap_or("");
+            .filter(|s| !s.is_empty());
         let reason = extract_text(event_body, "reason");
 
-        let vendor_contract_id: Option<i32> = sqlx::query_scalar(
-            "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
-        )
-        .bind(project_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        // Get vendor contract ID - either from metadata or by tracing tx chain
+        let vendor_contract_id: Option<i32> = if let Some(pid) = project_id_from_meta {
+            sqlx::query_scalar(
+                "SELECT id FROM treasury.vendor_contracts WHERE project_id = $1"
+            )
+            .bind(pid)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            self.find_vendor_contract_from_inputs(&event.tx_hash).await?
+        };
 
         if let Some(vc_id) = vendor_contract_id {
             self.insert_event_with_reason(event, "modify", None, Some(vc_id), None, &reason, body).await?;
+        } else {
+            tracing::debug!("Could not find vendor contract for modify event {}", event.tx_hash);
         }
 
         Ok(())
@@ -527,20 +616,35 @@ impl EventProcessor {
     async fn process_cancel(&self, event: &RawTomEvent, body: &Value) -> anyhow::Result<()> {
         let event_body = body.get("body").unwrap_or(body);
 
-        let project_id = event_body.get("identifier")
+        let project_id_from_meta = event_body.get("identifier")
             .and_then(|i| i.as_str())
-            .unwrap_or("");
+            .filter(|s| !s.is_empty());
         let reason = extract_text(event_body, "reason");
 
-        let vendor_contract_id: Option<i32> = sqlx::query_scalar(
-            "UPDATE treasury.vendor_contracts SET status = 'cancelled' WHERE project_id = $1 RETURNING id"
-        )
-        .bind(project_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        // Get vendor contract ID - either from metadata or by tracing tx chain
+        let vendor_contract_id: Option<i32> = if let Some(pid) = project_id_from_meta {
+            sqlx::query_scalar(
+                "UPDATE treasury.vendor_contracts SET status = 'cancelled' WHERE project_id = $1 RETURNING id"
+            )
+            .bind(pid)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            if let Some(vc_id) = self.find_vendor_contract_from_inputs(&event.tx_hash).await? {
+                sqlx::query("UPDATE treasury.vendor_contracts SET status = 'cancelled' WHERE id = $1")
+                    .bind(vc_id)
+                    .execute(&self.pool)
+                    .await?;
+                Some(vc_id)
+            } else {
+                None
+            }
+        };
 
         if let Some(vc_id) = vendor_contract_id {
             self.insert_event_with_reason(event, "cancel", None, Some(vc_id), None, &reason, body).await?;
+        } else {
+            tracing::debug!("Could not find vendor contract for cancel event {}", event.tx_hash);
         }
 
         Ok(())
@@ -681,6 +785,91 @@ impl EventProcessor {
         .await?;
 
         Ok(())
+    }
+
+    /// Find vendor_contract_id by looking up input UTXOs in our treasury.utxos tracking table.
+    /// When a fund event is processed, its output UTXOs are recorded with the vendor_contract_id.
+    /// Subsequent events (complete/withdraw/etc) spend those UTXOs, so we can find the project
+    /// by looking at which tracked UTXOs are being spent as inputs.
+    async fn find_vendor_contract_from_inputs(&self, tx_hash: &str) -> anyhow::Result<Option<i32>> {
+        // Get the inputs to this transaction
+        let inputs: Vec<(String, i16)> = sqlx::query_as(
+            r#"
+            SELECT tx_hash, output_index::smallint
+            FROM yaci_store.tx_input
+            WHERE spent_tx_hash = $1
+            "#
+        )
+        .bind(tx_hash)
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Look up each input in our tracked UTXOs
+        for (input_tx_hash, input_output_index) in &inputs {
+            let vendor_contract_id: Option<i32> = sqlx::query_scalar(
+                r#"
+                SELECT vendor_contract_id
+                FROM treasury.utxos
+                WHERE tx_hash = $1 AND output_index = $2 AND vendor_contract_id IS NOT NULL
+                "#
+            )
+            .bind(input_tx_hash)
+            .bind(input_output_index)
+            .fetch_optional(&self.pool)
+            .await?;
+
+            if let Some(vc_id) = vendor_contract_id {
+                // Mark this UTXO as spent and record the new outputs
+                sqlx::query(
+                    r#"
+                    UPDATE treasury.utxos
+                    SET spent = true, spent_tx_hash = $1
+                    WHERE tx_hash = $2 AND output_index = $3
+                    "#
+                )
+                .bind(tx_hash)
+                .bind(input_tx_hash)
+                .bind(input_output_index)
+                .execute(&self.pool)
+                .await?;
+
+                // Record the outputs of this transaction with the same vendor_contract_id
+                let outputs: Option<serde_json::Value> = sqlx::query_scalar(
+                    "SELECT outputs::jsonb FROM yaci_store.transaction WHERE tx_hash = $1"
+                )
+                .bind(tx_hash)
+                .fetch_optional(&self.pool)
+                .await?;
+
+                if let Some(serde_json::Value::Array(output_arr)) = outputs {
+                    for output in output_arr {
+                        if let (Some(out_tx_hash), Some(output_index)) = (
+                            output.get("tx_hash").and_then(|h| h.as_str()),
+                            output.get("output_index").and_then(|i| i.as_i64())
+                        ) {
+                            sqlx::query(
+                                r#"
+                                INSERT INTO treasury.utxos (tx_hash, output_index, vendor_contract_id, spent)
+                                VALUES ($1, $2, $3, false)
+                                ON CONFLICT (tx_hash, output_index) DO UPDATE
+                                    SET vendor_contract_id = EXCLUDED.vendor_contract_id
+                                "#
+                            )
+                            .bind(out_tx_hash)
+                            .bind(output_index as i16)
+                            .bind(vc_id)
+                            .execute(&self.pool)
+                            .await?;
+                        }
+                    }
+                }
+
+                return Ok(Some(vc_id));
+            }
+        }
+
+        tracing::debug!("No tracked UTXO found for tx {} inputs", tx_hash);
+        Ok(None)
     }
 
     /// Sync UTXOs for all tracked addresses

@@ -38,9 +38,7 @@ export default function ProjectDetailPage() {
           <nav className="nav">
             <Link href="/">Dashboard</Link>
             <Link href="/projects">Projects</Link>
-            <Link href="/transactions">Transactions</Link>
-            <Link href="/vendor-contracts">Treasury Addresses</Link>
-            <Link href="/events">Fund Flows</Link>
+            <Link href="/events">Fund Flow</Link>
           </nav>
         </div>
         <div className="container">
@@ -58,9 +56,7 @@ export default function ProjectDetailPage() {
           <nav className="nav">
             <Link href="/">Dashboard</Link>
             <Link href="/projects">Projects</Link>
-            <Link href="/transactions">Transactions</Link>
-            <Link href="/vendor-contracts">Treasury Addresses</Link>
-            <Link href="/events">Fund Flows</Link>
+            <Link href="/events">Fund Flow</Link>
           </nav>
         </div>
         <div className="container">
@@ -76,6 +72,7 @@ export default function ProjectDetailPage() {
   }
 
   const { project, milestones, events, utxos, balance_lovelace, utxo_count } = projectDetail
+  const milestoneCount = project.milestone_count || 0
   const completedCount = milestones.filter(m => m.status === 'completed' || m.status === 'disbursed').length
   const disbursedCount = milestones.filter(m => m.status === 'disbursed').length
 
@@ -86,9 +83,7 @@ export default function ProjectDetailPage() {
         <nav className="nav">
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
-          <Link href="/transactions">Transactions</Link>
-          <Link href="/vendor-contracts">Treasury Addresses</Link>
-          <Link href="/events">Fund Flows</Link>
+          <Link href="/events">Fund Flow</Link>
         </nav>
       </div>
 
@@ -136,7 +131,7 @@ export default function ProjectDetailPage() {
               </div>
               <div className="info-item">
                 <span className="label">Created</span>
-                <span className="value">{formatTime(project.created_time)}</span>
+                <span className="value">{formatTime(project.created_time ?? null)}</span>
               </div>
               <div className="info-item">
                 <span className="label">Fund Transaction</span>
@@ -153,14 +148,14 @@ export default function ProjectDetailPage() {
           <h2>Milestone Progress</h2>
           <div className="progress-summary">
             <div className="progress-stats">
-              <span>{completedCount} of {project.milestone_count} milestones completed</span>
+              <span>{completedCount} of {milestoneCount} milestones completed</span>
               <span>{disbursedCount} disbursed</span>
             </div>
             <div className="progress-bar large">
               <div
                 className="progress-fill"
                 style={{
-                  width: `${project.milestone_count > 0 ? (completedCount / project.milestone_count) * 100 : 0}%`
+                  width: `${milestoneCount > 0 ? (completedCount / milestoneCount) * 100 : 0}%`
                 }}
               />
             </div>

@@ -92,11 +92,11 @@ CREATE TABLE IF NOT EXISTS treasury.utxos (
     id SERIAL PRIMARY KEY,
     tx_hash VARCHAR(64) NOT NULL,                -- Transaction hash
     output_index SMALLINT NOT NULL,              -- Output index
-    address TEXT NOT NULL,                       -- Owner address
+    address TEXT,                                -- Owner address (optional for tracking)
     address_type TEXT,                           -- treasury/vendor_contract/vendor
     vendor_contract_id INT REFERENCES treasury.vendor_contracts(id),
-    lovelace_amount BIGINT NOT NULL,             -- Amount
-    slot BIGINT NOT NULL,                        -- Creation slot
+    lovelace_amount BIGINT,                      -- Amount (optional for tracking)
+    slot BIGINT,                                 -- Creation slot (optional for tracking)
     block_number BIGINT,                         -- Block number
     spent BOOLEAN DEFAULT FALSE,                 -- Is spent?
     spent_tx_hash VARCHAR(64),                   -- Spending transaction

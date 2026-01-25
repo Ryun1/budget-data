@@ -8,8 +8,9 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ project, balance, completedMilestones }: ProjectCardProps) {
-  const progressPercent = project.milestone_count > 0
-    ? ((completedMilestones || 0) / project.milestone_count) * 100
+  const milestoneCount = project.milestone_count || 0
+  const progressPercent = milestoneCount > 0
+    ? ((completedMilestones || 0) / milestoneCount) * 100
     : 0
 
   return (
@@ -41,7 +42,7 @@ export default function ProjectCard({ project, balance, completedMilestones }: P
         <div className="stat">
           <span className="stat-label">Milestones</span>
           <span className="stat-value">
-            {completedMilestones || 0} / {project.milestone_count}
+            {completedMilestones || 0} / {milestoneCount}
           </span>
         </div>
       </div>
