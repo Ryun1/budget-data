@@ -1,10 +1,7 @@
 # Render-compatible Dockerfile for YACI Store Indexer
 FROM bloxbean/yaci-store:2.0.0-beta5
 
-# Install envsubst for environment variable substitution
-# yaci-store image is Alpine-based, use apk
 USER root
-RUN apk add --no-cache gettext
 
 # Copy configuration and startup script
 COPY application.render.properties /app/config/application.properties.template

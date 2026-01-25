@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 # Convert Render's postgres:// URL to JDBC format
@@ -10,15 +10,18 @@ if [ -n "$SPRING_DATASOURCE_URL" ]; then
     # Remove postgres:// prefix and convert to jdbc:postgresql://
     JDBC_URL=$(echo "$SPRING_DATASOURCE_URL" | sed 's|^postgres://|jdbc:postgresql://|' | sed 's|^postgresql://|jdbc:postgresql://|')
 
-    # Add schema parameter
-    if [[ "$JDBC_URL" == *"?"* ]]; then
-        JDBC_URL="${JDBC_URL}&currentSchema=yaci_store"
-    else
-        JDBC_URL="${JDBC_URL}?currentSchema=yaci_store"
-    fi
+    # Add schema parameter (POSIX compatible check)
+    case "$JDBC_URL" in
+        *"?"*)
+            JDBC_URL="${JDBC_URL}&currentSchema=yaci_store"
+            ;;
+        *)
+            JDBC_URL="${JDBC_URL}?currentSchema=yaci_store"
+            ;;
+    esac
 
     export SPRING_DATASOURCE_URL="$JDBC_URL"
-    echo "Configured database URL: ${JDBC_URL%%@*}@***"
+    echo "Configured database URL"
 fi
 
 # Copy template to config
