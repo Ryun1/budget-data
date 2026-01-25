@@ -42,23 +42,13 @@ services:
     region: oregon
     plan: starter
     healthCheckPath: /api/health
-    buildCommand: ""
-    # Build args for Docker - update NEXT_PUBLIC_API_URL after API is deployed
-    dockerCommand: ""
     envVars:
       - key: NODE_ENV
         value: production
-      # Runtime API URL fallback (not used by Next.js, but good for reference)
-      - key: API_URL
-        fromService:
-          name: treasury-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
-    # Docker build args - set the API URL here
-    # After first deploy, update this with the actual API URL
-    # e.g., https://treasury-api-xxxx.onrender.com
-    dockerBuildArgs:
-      NEXT_PUBLIC_API_URL: https://treasury-api.onrender.com
+      # IMPORTANT: Update this URL after the API is deployed
+      # Replace with your actual API URL, e.g., https://treasury-api-xxxx.onrender.com
+      - key: NEXT_PUBLIC_API_URL
+        value: https://treasury-api.onrender.com
     autoDeploy: true
 
   # YACI Store Indexer - Syncs Cardano blockchain data
