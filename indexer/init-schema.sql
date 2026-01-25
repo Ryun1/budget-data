@@ -3,6 +3,14 @@
 -- This schema is run before the application starts to create all required tables
 
 -- =====================================================
+-- Create yaci_store schema
+-- =====================================================
+CREATE SCHEMA IF NOT EXISTS yaci_store;
+
+-- Set search path so all tables are created in yaci_store schema
+SET search_path TO yaci_store;
+
+-- =====================================================
 -- Core Tables (from components/core)
 -- =====================================================
 
