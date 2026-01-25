@@ -17,8 +17,8 @@ if [ -n "$SPRING_DATASOURCE_URL" ]; then
     # Extract host:port/database (everything after @)
     HOST_PORT_DB=$(echo "$URL_WITHOUT_PROTOCOL" | sed 's|.*@||')
 
-    # Build JDBC URL
-    JDBC_URL="jdbc:postgresql://${HOST_PORT_DB}"
+    # Build JDBC URL with yaci_store schema as default
+    JDBC_URL="jdbc:postgresql://${HOST_PORT_DB}?currentSchema=yaci_store"
 
     # Extract username and password if not already set
     if [ -z "$SPRING_DATASOURCE_USERNAME" ]; then
