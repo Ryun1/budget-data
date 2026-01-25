@@ -82,7 +82,7 @@ services:
 databases:
   # PostgreSQL database for storing blockchain and treasury data
   - name: treasury-db
-    plan: starter  # 1GB storage, upgrade to standard for production
+    plan: basic-256mb  # 1GB storage, upgrade to standard for production
     region: oregon
     postgresMajorVersion: 15
     ipAllowList: []  # Only internal connections allowed
