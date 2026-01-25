@@ -19,7 +19,8 @@ if [ -n "$SPRING_DATASOURCE_URL" ]; then
     HOST_PORT_DB=$(echo "$URL_WITHOUT_PROTOCOL" | sed 's|.*@||')
 
     # Build JDBC URL (without credentials)
-    JDBC_URL="jdbc:postgresql://${HOST_PORT_DB}?currentSchema=yaci_store"
+    # Schema is configured via spring.jpa.properties.hibernate.default_schema
+    JDBC_URL="jdbc:postgresql://${HOST_PORT_DB}"
 
     # Extract username and password if not already set
     if [ -z "$SPRING_DATASOURCE_USERNAME" ]; then
