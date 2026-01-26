@@ -161,6 +161,10 @@ List Disburse transactions (disbursement events).
 
 List Withdraw transactions (withdrawal events).
 
+#### `GET /api/initialize`
+
+List Initialize transactions (contract initialization events).
+
 **Query Parameters:** Same as `/api/transactions` (without `action_type`)
 
 ---

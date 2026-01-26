@@ -19,14 +19,24 @@ store:
           lang: mvel
           expression: label == "1694"
 
-      # Transaction filtering disabled - inputs are UtxoKey objects without address info
-      # UTXO + metadata filtering is sufficient to reduce data storage
+      # Transaction filter DISABLED - timing issue: metadata not committed when filter runs
+      # Using scheduled cleanup instead (see scheduler section below)
       # transaction.save:
       #   - name: "Treasury Transaction Filter"
       #     lang: mvel
-      #     script:
-      #       file: /app/plugins/scripts/treasury-filter.mvel
-      #       function: filterTransactions
+      #     inline-script: |
+      #       filtered = new java.util.ArrayList();
+      #       for (txn : items) {
+      #         params = ["txHash": txn.txHash];
+      #         result = named_jdbc.queryForList(
+      #           "SELECT 1 FROM yaci_store.transaction_metadata WHERE tx_hash = :txHash AND label = '1694' LIMIT 1",
+      #           params
+      #         );
+      #         if (result != null && result.size() > 0) {
+      #           filtered.add(txn);
+      #         }
+      #       }
+      #       return filtered;
 
     # Post-action to track discovered vendor addresses
     post-actions:
@@ -36,3 +46,29 @@ store:
           script:
             file: /app/plugins/scripts/treasury-filter.mvel
             function: discoverVendorAddresses
+
+    # Scheduled cleanup to remove non-treasury transactions
+    schedulers:
+      - name: "Transaction Cleanup"
+        lang: mvel
+        cron: "0 0 * * * *"
+        inline-script: |
+          // Get current max block
+          maxBlockResult = named_jdbc.queryForList("SELECT MAX(number) as max_block FROM yaci_store.block", {});
+          if (maxBlockResult == null || maxBlockResult.size() == 0) {
+            return;
+          }
+          maxBlock = maxBlockResult.get(0).get("max_block");
+          if (maxBlock == null) {
+            return;
+          }
+          // Delete transactions older than 1000 blocks that don't have TOM metadata
+          safeBlock = maxBlock - 1000;
+          params = ["safeBlock": safeBlock];
+          deleted = named_jdbc.update(
+            "DELETE FROM yaci_store.transaction WHERE block < :safeBlock AND tx_hash NOT IN (SELECT tx_hash FROM yaci_store.transaction_metadata WHERE label = '1694')",
+            params
+          );
+          if (deleted > 0) {
+            System.out.println("Transaction Cleanup: deleted " + deleted + " non-treasury transactions older than block " + safeBlock);
+          }

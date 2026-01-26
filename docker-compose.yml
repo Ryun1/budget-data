@@ -4,6 +4,14 @@ services:
   postgres:
     image: postgres:14-alpine
     container_name: treasury-postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "max_wal_size=2GB"
+      - "-c"
+      - "checkpoint_timeout=15min"
+      - "-c"
+      - "wal_buffers=64MB"
     environment:
       POSTGRES_DB: treasury_data
       POSTGRES_USER: postgres

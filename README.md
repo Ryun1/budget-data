@@ -91,6 +91,7 @@ Base URL: `http://localhost:8080`
 | `GET /api/fund` | List Fund events |
 | `GET /api/disburse` | List Disburse events |
 | `GET /api/withdraw` | List Withdraw events |
+| `GET /api/initialize` | List Initialize events |
 | `GET /api/utxos` | List treasury UTXOs |
 | `GET /api/vendor-contracts` | List treasury addresses with balances |
 | `GET /api/fund-flows` | List all TOM events |

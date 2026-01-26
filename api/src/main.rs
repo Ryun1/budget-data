@@ -82,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/fund", get(fund::list_fund_transactions))
         .route("/api/disburse", get(disburse::list_disburse_transactions))
         .route("/api/withdraw", get(withdraw::list_withdraw_transactions))
+        .route("/api/initialize", get(initialize::list_initialize_transactions))
         // Updated routes (use new treasury schema)
         .route("/api/balance", get(balance::get_balance))
         .route("/api/stats", get(stats::get_stats))
