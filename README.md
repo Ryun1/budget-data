@@ -37,6 +37,8 @@ budget-data/
 │   │   └── db/              # Database utilities
 │   ├── Cargo.toml
 │   └── README.md            # Full API documentation
+├── docs/                    # Documentation
+│   └── architecture.md      # Data flow diagrams
 ├── database/
 │   └── init/                # Schema initialization
 ├── docker-compose.yml
@@ -189,7 +191,7 @@ ORDER BY slot DESC LIMIT 10;
 YACI Store plugins filter blockchain data to only store treasury-relevant information:
 
 - **UTXO Filter**: Only addresses with stake credential `8583857e4a12ffe1e6f641a1785a0f2f036c565cfbe6ff9db8e5a469`
-- **Metadata Filter**: Only metadata with label `1694` (TOM standard)
+- **Metadata Filter**: Only metadata with label `1694` (TOM standard) AND instance `9e65e4ed7d6fd86fc4827d2b45da6d2c601fb920e8bfd794b8ecc619`
 
 This reduces database size by ~95% while keeping all treasury data.
 
@@ -236,6 +238,7 @@ Set automatically by Render from the database:
 
 ## Component Documentation
 
+- [Architecture & Data Flow](docs/architecture.md) - System architecture and data flow diagrams
 - [API Documentation](api/README.md) - Full API reference
 - [Indexer Setup](indexer/README.md) - YACI Store configuration
 - [Database Migrations](database/migrations/) - Schema definitions
