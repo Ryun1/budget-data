@@ -1,5 +1,4 @@
 pub mod transactions;
-pub mod utxos;
 pub mod stats;
 pub mod fund;
 pub mod disburse;

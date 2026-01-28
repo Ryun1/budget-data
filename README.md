@@ -96,13 +96,14 @@ Base URL: `http://localhost:8080`
 | `GET /api/disburse` | List Disburse events |
 | `GET /api/withdraw` | List Withdraw events |
 | `GET /api/initialize` | List Initialize events |
-| `GET /api/utxos` | List treasury UTXOs |
 | `GET /api/projects` | List all projects (vendor contracts) |
 | `GET /api/projects/:project_id` | Get project by ID |
 | `GET /api/projects/:project_id/milestones` | Get project milestones |
 | `GET /api/projects/:project_id/events` | Get project events |
+| `GET /api/projects/:project_id/utxos` | Get project UTXOs |
 | `GET /api/treasury` | List treasury contract instances |
 | `GET /api/treasury/:instance` | Get treasury contract by instance |
+| `GET /api/treasury/:instance/utxos` | Get treasury UTXOs |
 | `GET /api/events` | List processed TOM events with context |
 
 **[Full API Documentation →](api/README.md)**

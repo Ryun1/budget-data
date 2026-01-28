@@ -76,7 +76,6 @@ async fn main() -> anyhow::Result<()> {
         // Legacy routes (still query yaci_store directly for raw TOM transactions)
         .route("/api/transactions", get(transactions::list_transactions))
         .route("/api/transactions/:tx_hash", get(transactions::get_transaction))
-        .route("/api/utxos", get(utxos::list_utxos))
         .route("/api/fund", get(fund::list_fund_transactions))
         .route("/api/disburse", get(disburse::list_disburse_transactions))
         .route("/api/withdraw", get(withdraw::list_withdraw_transactions))
@@ -88,9 +87,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/projects/:project_id", get(projects::get_project))
         .route("/api/projects/:project_id/milestones", get(projects::get_project_milestones))
         .route("/api/projects/:project_id/events", get(projects::get_project_events))
-        // New treasury routes
+        .route("/api/projects/:project_id/utxos", get(projects::get_project_utxos))
+        // Treasury routes
         .route("/api/treasury", get(treasury::list_treasury_contracts))
         .route("/api/treasury/:instance", get(treasury::get_treasury_contract))
+        .route("/api/treasury/:instance/utxos", get(treasury::get_treasury_utxos))
         // New events route
         .route("/api/events", get(events::list_events))
         .layer(Extension(pool))
