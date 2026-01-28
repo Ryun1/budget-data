@@ -370,23 +370,24 @@ This document describes how data flows through the Cardano Treasury Fund Trackin
 │                           API REQUEST FLOW                                   │
 └──────────────────────────────────────────────────────────────────────────────┘
 
-   Client Request: GET /api/projects/project-001
+   Client Request: GET /api/v1/vendor-contracts/EC-0008-25
                                       │
                                       ▼
    ┌─────────────────────────────────────────────────────────────────────────┐
    │                         AXUM ROUTER                                      │
    │                                                                          │
-   │   .route("/api/projects/:project_id", get(projects::get_project))       │
+   │   .nest("/api/v1", routes::v1::router())                                │
+   │     → /vendor-contracts/:project_id → get_vendor_contract()             │
    └─────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
    ┌─────────────────────────────────────────────────────────────────────────┐
-   │                      routes/projects.rs                                  │
+   │                  routes/v1/vendor_contracts.rs                           │
    │                                                                          │
-   │   pub async fn get_project(                                             │
+   │   pub async fn get_vendor_contract(                                     │
    │       Extension(pool): Extension<PgPool>,                               │
    │       Path(project_id): Path<String>,                                   │
-   │   ) -> Result<Json<Project>, StatusCode>                                │
+   │   ) -> Result<Json<ApiResponse<VendorContractDetail>>, StatusCode>      │
    └─────────────────────────────────────────────────────────────────────────┘
                                       │
                                       │ SQL Query
@@ -394,26 +395,30 @@ This document describes how data flows through the Cardano Treasury Fund Trackin
    ┌─────────────────────────────────────────────────────────────────────────┐
    │                        PostgreSQL                                        │
    │                                                                          │
-   │   SELECT * FROM treasury.vendor_contracts                               │
-   │   WHERE project_id = 'project-001'                                      │
-   │                                                                          │
-   │   SELECT * FROM treasury.milestones                                     │
-   │   WHERE vendor_contract_id = ?                                          │
+   │   SELECT * FROM treasury.v_vendor_contracts_summary                     │
+   │   WHERE project_id = 'EC-0008-25'                                       │
    └─────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
    ┌─────────────────────────────────────────────────────────────────────────┐
-   │                      JSON Response                                       │
+   │                      JSON Response (v1 envelope)                         │
    │                                                                          │
    │   {                                                                     │
-   │     "project_id": "project-001",                                        │
-   │     "project_name": "My Project",                                       │
-   │     "vendor_name": "Acme Corp",                                         │
-   │     "status": "active",                                                 │
-   │     "milestones": [                                                     │
-   │       { "milestone_id": "m1", "status": "completed" },                  │
-   │       { "milestone_id": "m2", "status": "pending" }                     │
-   │     ]                                                                   │
+   │     "data": {                                                           │
+   │       "project_id": "EC-0008-25",                                       │
+   │       "project_name": "Community Hub Development",                      │
+   │       "vendor_name": "Acme Blockchain Solutions",                       │
+   │       "status": "active",                                               │
+   │       "initial_amount_lovelace": 1000000000000,                         │
+   │       "initial_amount_ada": 1000000.0,                                  │
+   │       "milestones_summary": { "total": 5, "disbursed": 2 },             │
+   │       "financials": {                                                   │
+   │         "total_allocated_ada": 1000000.0,                               │
+   │         "total_disbursed_ada": 400000.0,                                │
+   │         "disbursement_percentage": 40.0                                 │
+   │       }                                                                 │
+   │     },                                                                  │
+   │     "meta": { "timestamp": "2026-01-28T10:30:00Z" }                     │
    │   }                                                                     │
    └─────────────────────────────────────────────────────────────────────────┘
 ```

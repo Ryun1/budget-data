@@ -159,33 +159,48 @@ pub async fn init_treasury_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_utxo_unspent ON treasury.utxos(address) WHERE NOT spent").execute(pool).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_utxo_slot ON treasury.utxos(slot DESC)").execute(pool).await?;
 
-    // Create views
+    // Create additional indexes for new views
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_utxo_vendor_unspent ON treasury.utxos(vendor_contract_id) WHERE NOT spent").execute(pool).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_event_milestone ON treasury.events(milestone_id)").execute(pool).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_event_type_time ON treasury.events(event_type, block_time DESC)").execute(pool).await?;
+
+    // Create views - v_vendor_contracts_summary with extended fields
     sqlx::query(r#"
         CREATE OR REPLACE VIEW treasury.v_vendor_contracts_summary AS
         SELECT
             vc.id,
+            vc.treasury_id,
             vc.project_id,
+            vc.other_identifiers,
             vc.project_name,
             vc.description,
             vc.vendor_name,
             vc.vendor_address,
+            vc.contract_url,
             vc.contract_address,
             vc.fund_tx_hash,
             vc.fund_slot,
             vc.fund_block_time,
             vc.initial_amount_lovelace,
             vc.status,
+            vc.created_at,
+            vc.updated_at,
             tc.contract_instance as treasury_instance,
-            COUNT(m.id) as total_milestones,
-            COUNT(m.id) FILTER (WHERE m.status IN ('completed', 'disbursed')) as completed_milestones,
-            COUNT(m.id) FILTER (WHERE m.status = 'disbursed') as disbursed_milestones,
-            COALESCE(SUM(u.lovelace_amount) FILTER (WHERE NOT u.spent), 0)::BIGINT as current_balance,
-            COUNT(u.id) FILTER (WHERE NOT u.spent) as utxo_count
+            tc.name as treasury_name,
+            COUNT(DISTINCT m.id) as total_milestones,
+            COUNT(DISTINCT m.id) FILTER (WHERE m.status = 'pending') as pending_milestones,
+            COUNT(DISTINCT m.id) FILTER (WHERE m.status = 'completed') as completed_milestones,
+            COUNT(DISTINCT m.id) FILTER (WHERE m.status = 'disbursed') as disbursed_milestones,
+            COALESCE(SUM(DISTINCT m.disburse_amount), 0)::BIGINT as total_disbursed_lovelace,
+            COALESCE(SUM(u.lovelace_amount) FILTER (WHERE NOT u.spent), 0)::BIGINT as current_balance_lovelace,
+            COUNT(u.id) FILTER (WHERE NOT u.spent) as utxo_count,
+            (SELECT MAX(e.block_time) FROM treasury.events e WHERE e.vendor_contract_id = vc.id) as last_event_time,
+            (SELECT COUNT(*) FROM treasury.events e WHERE e.vendor_contract_id = vc.id) as event_count
         FROM treasury.vendor_contracts vc
         LEFT JOIN treasury.treasury_contracts tc ON tc.id = vc.treasury_id
         LEFT JOIN treasury.milestones m ON m.vendor_contract_id = vc.id
         LEFT JOIN treasury.utxos u ON u.vendor_contract_id = vc.id
-        GROUP BY vc.id, tc.contract_instance
+        GROUP BY vc.id, tc.contract_instance, tc.name
     "#).execute(pool).await?;
 
     sqlx::query(r#"
@@ -240,22 +255,95 @@ pub async fn init_treasury_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
         ORDER BY e.slot DESC
     "#).execute(pool).await?;
 
+    // v_treasury_summary with extended fields
     sqlx::query(r#"
         CREATE OR REPLACE VIEW treasury.v_treasury_summary AS
         SELECT
             tc.id as treasury_id,
             tc.contract_instance,
             tc.contract_address,
+            tc.stake_credential,
             tc.name,
             tc.status,
+            tc.publish_tx_hash,
             tc.publish_time,
+            tc.initialized_tx_hash,
             tc.initialized_at,
+            tc.permissions,
             COUNT(DISTINCT vc.id) as vendor_contract_count,
             COUNT(DISTINCT vc.id) FILTER (WHERE vc.status = 'active') as active_contracts,
+            COUNT(DISTINCT vc.id) FILTER (WHERE vc.status = 'completed') as completed_contracts,
+            COUNT(DISTINCT vc.id) FILTER (WHERE vc.status = 'cancelled') as cancelled_contracts,
             COALESCE(SUM(u.lovelace_amount) FILTER (WHERE NOT u.spent AND u.address = tc.contract_address), 0)::BIGINT as treasury_balance,
-            (SELECT COUNT(*) FROM treasury.events WHERE treasury_id = tc.id) as total_events
+            COUNT(u.id) FILTER (WHERE NOT u.spent AND u.address = tc.contract_address) as utxo_count,
+            (SELECT COUNT(*) FROM treasury.events WHERE treasury_id = tc.id) as total_events,
+            (SELECT MAX(block_time) FROM treasury.events WHERE treasury_id = tc.id) as last_event_time,
+            tc.created_at,
+            tc.updated_at
         FROM treasury.treasury_contracts tc
         LEFT JOIN treasury.vendor_contracts vc ON vc.treasury_id = tc.id
+        LEFT JOIN treasury.utxos u ON u.address = tc.contract_address
+        GROUP BY tc.id
+    "#).execute(pool).await?;
+
+    // v_events_with_context - events with full context
+    sqlx::query(r#"
+        CREATE OR REPLACE VIEW treasury.v_events_with_context AS
+        SELECT
+            e.id,
+            e.tx_hash,
+            e.slot,
+            e.block_number,
+            e.block_time,
+            e.event_type,
+            e.amount_lovelace,
+            e.reason,
+            e.destination,
+            e.metadata,
+            e.created_at,
+            tc.contract_instance as treasury_instance,
+            tc.name as treasury_name,
+            vc.project_id,
+            vc.project_name,
+            vc.vendor_name,
+            vc.contract_address as project_address,
+            m.milestone_id,
+            m.label as milestone_label,
+            m.milestone_order
+        FROM treasury.events e
+        LEFT JOIN treasury.treasury_contracts tc ON tc.id = e.treasury_id
+        LEFT JOIN treasury.vendor_contracts vc ON vc.id = e.vendor_contract_id
+        LEFT JOIN treasury.milestones m ON m.id = e.milestone_id
+    "#).execute(pool).await?;
+
+    // v_financial_summary - allocated vs disbursed vs remaining
+    sqlx::query(r#"
+        CREATE OR REPLACE VIEW treasury.v_financial_summary AS
+        SELECT
+            tc.id as treasury_id,
+            tc.contract_instance,
+            tc.name as treasury_name,
+            COALESCE(SUM(vc.initial_amount_lovelace), 0)::BIGINT as total_allocated_lovelace,
+            COALESCE(SUM(m_totals.total_disbursed), 0)::BIGINT as total_disbursed_lovelace,
+            (COALESCE(SUM(vc.initial_amount_lovelace), 0) - COALESCE(SUM(m_totals.total_disbursed), 0))::BIGINT as total_remaining_lovelace,
+            COALESCE(SUM(u.lovelace_amount) FILTER (WHERE NOT u.spent AND u.address = tc.contract_address), 0)::BIGINT as treasury_balance_lovelace,
+            COALESCE((
+                SELECT SUM(u2.lovelace_amount)
+                FROM treasury.utxos u2
+                JOIN treasury.vendor_contracts vc2 ON vc2.id = u2.vendor_contract_id
+                WHERE vc2.treasury_id = tc.id AND NOT u2.spent
+            ), 0)::BIGINT as project_balance_lovelace,
+            COUNT(DISTINCT vc.id) as project_count,
+            COUNT(DISTINCT CASE WHEN vc.status = 'active' THEN vc.id END) as active_project_count
+        FROM treasury.treasury_contracts tc
+        LEFT JOIN treasury.vendor_contracts vc ON vc.treasury_id = tc.id
+        LEFT JOIN (
+            SELECT
+                m.vendor_contract_id,
+                SUM(COALESCE(m.disburse_amount, 0)) as total_disbursed
+            FROM treasury.milestones m
+            GROUP BY m.vendor_contract_id
+        ) m_totals ON m_totals.vendor_contract_id = vc.id
         LEFT JOIN treasury.utxos u ON u.address = tc.contract_address
         GROUP BY tc.id
     "#).execute(pool).await?;

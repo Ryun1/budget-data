@@ -6,15 +6,17 @@ use axum::{
 };
 use sqlx::PgPool;
 use std::net::SocketAddr;
-use tower_http::cors::{CorsLayer, Any};
-use tracing_subscriber;
+use tower_http::cors::{Any, CorsLayer};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
-mod routes;
 mod db;
 mod models;
+mod openapi;
+mod routes;
 mod services;
 
-use routes::*;
+use openapi::ApiDoc;
 use services::run_sync_loop;
 
 #[tokio::main]
@@ -48,7 +50,12 @@ async fn main() -> anyhow::Result<()> {
                     return Err(e.into());
                 }
                 let delay = std::time::Duration::from_secs(2_u64.pow(attempt));
-                tracing::warn!("Database connection attempt {} failed: {}. Retrying in {:?}...", attempt, e, delay);
+                tracing::warn!(
+                    "Database connection attempt {} failed: {}. Retrying in {:?}...",
+                    attempt,
+                    e,
+                    delay
+                );
                 tokio::time::sleep(delay).await;
             }
         }
@@ -72,39 +79,24 @@ async fn main() -> anyhow::Result<()> {
 
     // Build application routes
     let app = Router::new()
+        // Health check
         .route("/health", get(health_check))
-        // Legacy routes (still query yaci_store directly for raw TOM transactions)
-        .route("/api/transactions", get(transactions::list_transactions))
-        .route("/api/transactions/:tx_hash", get(transactions::get_transaction))
-        .route("/api/fund", get(fund::list_fund_transactions))
-        .route("/api/disburse", get(disburse::list_disburse_transactions))
-        .route("/api/withdraw", get(withdraw::list_withdraw_transactions))
-        .route("/api/initialize", get(initialize::list_initialize_transactions))
-        // Updated routes (use new treasury schema)
-        .route("/api/stats", get(stats::get_stats))
-        // Project routes (use new treasury schema)
-        .route("/api/projects", get(projects::list_projects))
-        .route("/api/projects/:project_id", get(projects::get_project))
-        .route("/api/projects/:project_id/milestones", get(projects::get_project_milestones))
-        .route("/api/projects/:project_id/events", get(projects::get_project_events))
-        .route("/api/projects/:project_id/utxos", get(projects::get_project_utxos))
-        // Treasury routes
-        .route("/api/treasury", get(treasury::list_treasury_contracts))
-        .route("/api/treasury/:instance", get(treasury::get_treasury_contract))
-        .route("/api/treasury/:instance/utxos", get(treasury::get_treasury_utxos))
-        // New events route
-        .route("/api/events", get(events::list_events))
+        // OpenAPI / Swagger UI
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        // V1 API routes
+        .nest("/api/v1", routes::v1::router())
         .layer(Extension(pool))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
-                .allow_methods([Method::GET, Method::POST])
+                .allow_methods([Method::GET])
                 .allow_headers(Any),
         );
 
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     tracing::info!("Server listening on {}", addr);
+    tracing::info!("Swagger UI available at http://localhost:8080/docs");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
