@@ -1,13 +1,14 @@
 # Treasury API Backend
 
-Rust-based REST API for querying Cardano treasury fund tracking data. Built with Axum framework and SQLx for PostgreSQL.
+Rust-based REST API for querying Cardano treasury fund tracking data. Built with Axum framework, SQLx for PostgreSQL, and utoipa for OpenAPI documentation.
 
-## Architecture
+## Features
 
-The API queries data from YACI Store's indexed blockchain data:
-- **UTXOs**: Treasury contract UTXOs (filtered by stake credential)
-- **Metadata**: TOM (Treasury Oversight Metadata) with label 1694
-- **Blocks**: Blockchain synchronization data
+- RESTful API with OpenAPI/Swagger documentation
+- Consistent response envelopes with pagination
+- Both lovelace AND ADA amounts in responses
+- Raw metadata AND parsed/normalized data
+- Background sync service for real-time data
 
 ## Quick Start
 
@@ -17,11 +18,52 @@ cd ..
 ./dev.sh start
 
 # API available at http://localhost:8080
+# Swagger UI at http://localhost:8080/docs
 ```
 
 ## API Reference
 
 Base URL: `http://localhost:8080`
+
+Interactive documentation: `http://localhost:8080/docs`
+
+### Response Format
+
+All responses use a consistent envelope:
+
+```json
+{
+  "data": { ... },
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total_count": 150,
+    "has_next": true
+  },
+  "meta": {
+    "timestamp": "2026-01-28T10:30:00Z"
+  }
+}
+```
+
+- `data`: The response payload
+- `pagination`: Only present for paginated endpoints
+- `meta.timestamp`: When the response was generated
+
+### Amount Fields
+
+All monetary amounts include both representations:
+
+```json
+{
+  "initial_amount_lovelace": 1000000000000,
+  "initial_amount_ada": 1000000.0
+}
+```
+
+---
+
+## Endpoints
 
 ### Health Check
 
@@ -29,77 +71,103 @@ Base URL: `http://localhost:8080`
 
 Returns the health status of the API.
 
-**Response:**
-```
-OK
-```
+**Response:** `OK`
 
 ---
 
-### Statistics
+### Status
 
-#### `GET /api/stats`
+#### `GET /api/v1/status`
 
-Get aggregated statistics about treasury operations.
+Get API status and sync information.
 
 **Response:**
 ```json
 {
-  "tom_events": 21,
-  "total_balance": "264568247.000000",
-  "total_balance_lovelace": 264568247000000,
-  "treasury_addresses": 1,
-  "latest_block": 12296746,
-  "project_count": 5,
-  "milestone_count": 25,
-  "database": {
-    "yaci_store": [...],
-    "treasury": [...],
-    "yaci_store_total_size": "1.5 GB",
-    "treasury_total_size": "50 MB"
+  "data": {
+    "api_version": "1.0.0",
+    "database_connected": true,
+    "last_sync_slot": 163964156,
+    "last_sync_block": 12296746,
+    "last_sync_time": 1704067200,
+    "total_events": 21,
+    "total_vendor_contracts": 5
+  },
+  "meta": {
+    "timestamp": "2026-01-28T10:30:00Z"
   }
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `tom_events` | integer | Number of TOM events |
-| `total_balance` | string | Total treasury balance in ADA |
-| `total_balance_lovelace` | integer | Total treasury balance in lovelace |
-| `treasury_addresses` | integer | Number of unique treasury addresses |
-| `latest_block` | integer | Latest synced block number |
-| `project_count` | integer | Number of projects (vendor contracts) |
-| `milestone_count` | integer | Number of milestones across all projects |
-| `database` | object | Database storage statistics |
-
 ---
 
-### Balance
+### Treasury
 
-#### `GET /api/balance`
+#### `GET /api/v1/treasury`
 
-Get current treasury balance from UTXOs.
+Get treasury contract details with statistics and financials.
 
 **Response:**
 ```json
 {
-  "balance": "264568247.000000",
-  "lovelace": 264568247000000
+  "data": {
+    "id": 1,
+    "contract_instance": "9e65e4ed7d6fd86fc4827d2b45da6d2c601fb920e8bfd794b8ecc619",
+    "contract_address": "addr1xxzc8pt7fgf0lc0x7eq6z7z6puhsxmzktna7dluahrj6g6...",
+    "stake_credential": "8583857e4a12ffe1e6f641a1785a0f2f036c565cfbe6ff9db8e5a469",
+    "name": "CC Treasury",
+    "status": "active",
+    "publish_tx_hash": "abc123...",
+    "publish_time": 1704067200,
+    "initialized_tx_hash": "def456...",
+    "initialized_at": 1704067300,
+    "permissions": { ... },
+    "statistics": {
+      "vendor_contract_count": 10,
+      "active_contracts": 8,
+      "completed_contracts": 2,
+      "cancelled_contracts": 0,
+      "total_events": 45,
+      "utxo_count": 12,
+      "last_event_time": 1704153600
+    },
+    "financials": {
+      "balance_lovelace": 264568247000000,
+      "balance_ada": 264568247.0
+    },
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-15T12:00:00Z"
+  },
+  "meta": { ... }
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `balance` | string | Balance in ADA (6 decimal places) |
-| `lovelace` | integer | Balance in lovelace |
+#### `GET /api/v1/treasury/utxos`
 
----
+Get all unspent UTXOs at the treasury contract address.
 
-### Transactions (TOM Metadata)
+**Response:**
+```json
+{
+  "data": [
+    {
+      "tx_hash": "abc123...",
+      "output_index": 0,
+      "address": "addr1x...",
+      "address_type": "treasury",
+      "lovelace_amount": 100000000000,
+      "ada_amount": 100000.0,
+      "slot": 163964156,
+      "block_number": 12296746
+    }
+  ],
+  "meta": { ... }
+}
+```
 
-#### `GET /api/transactions`
+#### `GET /api/v1/treasury/events`
 
-List TOM transactions (transactions with label 1694 metadata).
+Get treasury-level events (publish, initialize, sweep, reorganize).
 
 **Query Parameters:**
 
@@ -107,38 +175,255 @@ List TOM transactions (transactions with label 1694 metadata).
 |-----------|------|---------|-------------|
 | `page` | integer | 1 | Page number (1-indexed) |
 | `limit` | integer | 50 | Results per page (max: 100) |
-| `action_type` | string | - | Filter by event type: `fund`, `disburse`, `withdraw`, `complete`, `initialize`, etc. |
+
+---
+
+### Vendor Contracts
+
+#### `GET /api/v1/vendor-contracts`
+
+List all vendor contracts (projects) with pagination and filtering.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number (1-indexed) |
+| `limit` | integer | 50 | Results per page (max: 100) |
+| `status` | string | - | Filter by status: `active`, `paused`, `completed`, `cancelled` |
+| `search` | string | - | Search in project_id, project_name, description, vendor_name |
+| `sort` | string | `fund_time` | Sort field: `fund_time`, `project_id`, `project_name`, `initial_amount` |
+| `order` | string | `desc` | Sort order: `asc`, `desc` |
+| `from_time` | integer | - | Filter by fund time (Unix timestamp, from) |
+| `to_time` | integer | - | Filter by fund time (Unix timestamp, to) |
 
 **Example:**
 ```bash
-curl "http://localhost:8080/api/transactions?page=1&limit=10&action_type=fund"
+curl "http://localhost:8080/api/v1/vendor-contracts?status=active&search=community&limit=10"
 ```
 
 **Response:**
 ```json
-[
-  {
-    "tx_hash": "abc123...",
-    "slot": 160964954,
-    "block_number": 12125945,
-    "block_time": 1704067200,
-    "action_type": "fund",
-    "metadata": {
-      "@context": [...],
-      "body": {
-        "event": "fund",
-        "milestones": {...}
+{
+  "data": [
+    {
+      "id": 1,
+      "project_id": "EC-0008-25",
+      "project_name": "Community Hub Development",
+      "description": "Building decentralized community infrastructure",
+      "vendor_name": "Acme Blockchain Solutions",
+      "vendor_address": "addr1q...",
+      "contract_url": "https://...",
+      "contract_address": "addr1x...",
+      "status": "active",
+      "fund_tx_hash": "abc123...",
+      "fund_time": 1704067200,
+      "initial_amount_lovelace": 1000000000000,
+      "initial_amount_ada": 1000000.0,
+      "milestones_summary": {
+        "total": 5,
+        "pending": 2,
+        "completed": 2,
+        "disbursed": 1
       },
-      "instance": "9e65e4ed...",
-      "txAuthor": "e0b68e22..."
+      "financials": {
+        "total_allocated_lovelace": 1000000000000,
+        "total_allocated_ada": 1000000.0,
+        "total_disbursed_lovelace": 400000000000,
+        "total_disbursed_ada": 400000.0,
+        "current_balance_lovelace": 600000000000,
+        "current_balance_ada": 600000.0,
+        "disbursement_percentage": 40.0,
+        "utxo_count": 3
+      },
+      "treasury": {
+        "contract_instance": "9e65e4ed...",
+        "name": "CC Treasury"
+      },
+      "last_event_time": 1704153600,
+      "event_count": 8
     }
-  }
-]
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total_count": 5,
+    "has_next": false
+  },
+  "meta": { ... }
+}
 ```
 
-#### `GET /api/transactions/:tx_hash`
+#### `GET /api/v1/vendor-contracts/:project_id`
 
-Get a specific TOM transaction by hash.
+Get detailed information about a specific vendor contract.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project_id` | string | Project identifier (e.g., "EC-0008-25") |
+
+**Response:** Same as list item but with additional fields:
+- `other_identifiers`: Related project IDs
+- `created_at`, `updated_at`: Timestamps
+
+**Errors:**
+- `404 Not Found` - Vendor contract not found
+
+#### `GET /api/v1/vendor-contracts/:project_id/milestones`
+
+Get all milestones for a specific project.
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "milestone_id": "m-0",
+      "milestone_order": 1,
+      "label": "Phase 1: Research",
+      "description": "Complete market research and requirements gathering",
+      "acceptance_criteria": "Deliver research report",
+      "amount_lovelace": 200000000000,
+      "amount_ada": 200000.0,
+      "status": "disbursed",
+      "completion": {
+        "tx_hash": "abc123...",
+        "time": 1704067200,
+        "description": "Research completed successfully",
+        "evidence": [...]
+      },
+      "disbursement": {
+        "tx_hash": "def456...",
+        "time": 1704153600,
+        "amount_lovelace": 200000000000,
+        "amount_ada": 200000.0
+      },
+      "project": {
+        "project_id": "EC-0008-25",
+        "project_name": "Community Hub Development"
+      }
+    }
+  ],
+  "meta": { ... }
+}
+```
+
+#### `GET /api/v1/vendor-contracts/:project_id/events`
+
+Get event history for a specific project.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number |
+| `limit` | integer | 50 | Results per page |
+| `type` | string | - | Filter by event type |
+
+#### `GET /api/v1/vendor-contracts/:project_id/utxos`
+
+Get current (unspent) UTXOs for a specific project.
+
+---
+
+### Milestones
+
+#### `GET /api/v1/milestones`
+
+List all milestones across all projects.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number |
+| `limit` | integer | 50 | Results per page |
+| `status` | string | - | Filter by status: `pending`, `completed`, `disbursed` |
+| `project_id` | string | - | Filter by project ID |
+| `sort` | string | - | Sort field: `milestone_order`, `complete_time`, `disburse_time`, `amount` |
+
+#### `GET /api/v1/milestones/:id`
+
+Get a specific milestone by database ID.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | integer | Milestone database ID |
+
+---
+
+### Events
+
+#### `GET /api/v1/events`
+
+List all events with full context.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | integer | 1 | Page number |
+| `limit` | integer | 50 | Results per page |
+| `type` | string | - | Filter by event type |
+| `project_id` | string | - | Filter by project ID |
+| `from_time` | integer | - | Filter by time (Unix timestamp, from) |
+| `to_time` | integer | - | Filter by time (Unix timestamp, to) |
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "tx_hash": "abc123...",
+      "slot": 163964156,
+      "block_number": 12296746,
+      "block_time": 1704067200,
+      "event_type": "fund",
+      "amount_lovelace": 1000000000000,
+      "amount_ada": 1000000.0,
+      "reason": null,
+      "destination": null,
+      "treasury": {
+        "contract_instance": "9e65e4ed...",
+        "name": "CC Treasury"
+      },
+      "project": {
+        "project_id": "EC-0008-25",
+        "project_name": "Community Hub Development",
+        "vendor_name": "Acme Blockchain Solutions",
+        "contract_address": "addr1x..."
+      },
+      "milestone": null,
+      "metadata_raw": { ... },
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "pagination": { ... },
+  "meta": { ... }
+}
+```
+
+#### `GET /api/v1/events/recent`
+
+Get recent events for activity feeds.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `hours` | integer | 24 | Hours to look back (max: 168 = 1 week) |
+| `limit` | integer | 50 | Maximum events to return |
+| `type` | string | - | Filter by event type |
+
+#### `GET /api/v1/events/:tx_hash`
+
+Get a specific event by transaction hash.
 
 **Path Parameters:**
 
@@ -146,150 +431,85 @@ Get a specific TOM transaction by hash.
 |-----------|------|-------------|
 | `tx_hash` | string | Transaction hash (64 hex characters) |
 
-**Example:**
-```bash
-curl "http://localhost:8080/api/transactions/182f8efed8110d65708cf2d03d4946238b32bad661536e463e90427d1af1d666"
-```
-
-**Errors:**
-- `404 Not Found` - Transaction not found
-
 ---
 
-### Event-Specific Transactions
+### Statistics
 
-These endpoints return TOM transactions filtered by event type.
+#### `GET /api/v1/statistics`
 
-#### `GET /api/fund`
-
-List Fund transactions (funding events).
-
-#### `GET /api/disburse`
-
-List Disburse transactions (disbursement events).
-
-#### `GET /api/withdraw`
-
-List Withdraw transactions (withdrawal events).
-
-#### `GET /api/initialize`
-
-List Initialize transactions (contract initialization events).
-
-**Query Parameters:** Same as `/api/transactions` (without `action_type`)
-
----
-
-### UTXOs
-
-#### `GET /api/utxos`
-
-List treasury UTXOs (filtered by stake credential).
+Get comprehensive statistics across all data.
 
 **Response:**
 ```json
-[
-  {
-    "tx_hash": "abc123...",
-    "output_index": 0,
-    "owner_addr": "addr1xxzc8pt7fgf0lc0x7eq6z7z6puhsxmzktna7dluahrj6g6v9swzhujsjlls7dajp59u95re0qdk9vh8mumlemw89535s4ecqxj",
-    "lovelace_amount": 264568247000000,
-    "slot": 160964954,
-    "block_number": 12125945
-  }
-]
+{
+  "data": {
+    "treasury": {
+      "total_count": 1,
+      "active_count": 1
+    },
+    "projects": {
+      "total_count": 10,
+      "active_count": 8,
+      "completed_count": 2,
+      "paused_count": 0,
+      "cancelled_count": 0
+    },
+    "milestones": {
+      "total_count": 50,
+      "pending_count": 20,
+      "completed_count": 15,
+      "disbursed_count": 15
+    },
+    "events": {
+      "total_count": 45,
+      "by_type": {
+        "fund": 10,
+        "complete": 15,
+        "disburse": 15,
+        "publish": 1,
+        "initialize": 1,
+        "pause": 2,
+        "resume": 1
+      }
+    },
+    "financials": {
+      "total_allocated_lovelace": 5000000000000,
+      "total_allocated_ada": 5000000.0,
+      "total_disbursed_lovelace": 2000000000000,
+      "total_disbursed_ada": 2000000.0,
+      "current_balance_lovelace": 3000000000000,
+      "current_balance_ada": 3000000.0
+    },
+    "sync": {
+      "last_slot": 163964156,
+      "last_block": 12296746,
+      "last_updated": "2024-01-15T12:00:00Z"
+    }
+  },
+  "meta": { ... }
+}
 ```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `tx_hash` | string | Transaction hash containing this UTXO |
-| `output_index` | integer | Output index within the transaction |
-| `owner_addr` | string | Bech32 address owning the UTXO |
-| `lovelace_amount` | integer | Amount in lovelace |
-| `slot` | integer | Slot when UTXO was created |
-| `block_number` | integer | Block number when UTXO was created |
 
 ---
 
-### Treasury Addresses
+## Event Types
 
-#### `GET /api/treasury-addresses`
-
-List treasury addresses (aggregated by address with balances).
-
-**Response:**
-```json
-[
-  {
-    "address": "addr1xxzc8pt7fgf0lc0x7eq6z7z6puhsxmzktna7dluahrj6g6v9swzhujsjlls7dajp59u95re0qdk9vh8mumlemw89535s4ecqxj",
-    "stake_credential": "8583857e4a12ffe1e6f641a1785a0f2f036c565cfbe6ff9db8e5a469",
-    "balance_lovelace": 264568247000000,
-    "utxo_count": 34,
-    "latest_slot": 163964156
-  }
-]
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `address` | string | Bech32 treasury/vendor address |
-| `stake_credential` | string | Stake credential hash |
-| `balance_lovelace` | integer | Current balance in lovelace |
-| `utxo_count` | integer | Number of UTXOs at this address |
-| `latest_slot` | integer | Most recent slot with activity |
-
----
-
-### Treasury Operations
-
-#### `GET /api/treasury-operations`
-
-List treasury operations (TOM events) extracted from metadata.
-Includes all TOM events: fund, disburse, withdraw, initialize, complete, pause, resume, modify, cancel, sweep.
-
-**Response:**
-```json
-[
-  {
-    "tx_hash": "abc123...",
-    "slot": 160964954,
-    "block_number": 12125945,
-    "block_time": 1704067200,
-    "action_type": "fund",
-    "destination": "Sundae Labs",
-    "metadata": {...}
-  }
-]
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `tx_hash` | string | Transaction hash |
-| `slot` | integer | Cardano slot number |
-| `block_number` | integer | Block number |
-| `block_time` | integer | Unix timestamp |
-| `action_type` | string | Event type from TOM metadata |
-| `destination` | string | Destination label (if available) |
-| `metadata` | object | Full TOM metadata body |
-
----
-
-## TOM Metadata Event Types
-
-The API tracks the following Treasury Oversight Metadata events (label 1694):
+The API tracks the following Treasury Oversight Metadata (TOM) events:
 
 | Event | Description |
 |-------|-------------|
-| `initialize` | Initialize a vendor contract |
+| `publish` | Publish a treasury contract |
+| `initialize` | Initialize a treasury contract |
 | `fund` | Fund a vendor contract from treasury |
-| `disburse` | Disburse funds from vendor contract |
+| `complete` | Mark a milestone as complete |
+| `disburse` | Disburse funds for a completed milestone |
 | `withdraw` | Withdraw funds |
-| `complete` | Complete a milestone |
 | `pause` | Pause a contract |
 | `resume` | Resume a paused contract |
 | `modify` | Modify contract parameters |
 | `cancel` | Cancel a contract |
 | `sweep` | Sweep remaining funds |
+| `reorganize` | Reorganize treasury funds |
 
 ---
 
@@ -329,7 +549,7 @@ export DATABASE_URL=postgresql://postgres:postgres@localhost:5433/treasury_data
 cargo run
 ```
 
-The API will start on `http://localhost:8080`
+The API will start on `http://localhost:8080` with Swagger UI at `/docs`.
 
 ### Building for Production
 
@@ -355,170 +575,23 @@ docker run -p 8080:8080 \
 
 ## Database Schema
 
-The API queries the YACI Store schema (`yaci_store`):
+The API queries the `treasury` schema:
 
 | Table | Description |
 |-------|-------------|
-| `yaci_store.block` | Blockchain blocks |
-| `yaci_store.address_utxo` | Treasury UTXOs (filtered by plugin) |
-| `yaci_store.transaction_metadata` | TOM metadata (label 1694 only) |
+| `treasury.treasury_contracts` | Treasury reserve contracts (TRSC) |
+| `treasury.vendor_contracts` | Vendor/project contracts (PSSC) |
+| `treasury.milestones` | Project milestones |
+| `treasury.events` | All TOM event audit log |
+| `treasury.utxos` | UTXO tracking for event linking |
+| `treasury.sync_status` | Sync progress tracking |
 
-### Plugin Filtering
+### Views
 
-The YACI Store indexer uses plugins to filter data:
-- **UTXOs**: Only addresses with treasury stake credential
-- **Metadata**: Only label 1694 (TOM standard)
-
-This reduces database size significantly while keeping all treasury-relevant data.
-
----
-
-## Projects
-
-#### `GET /api/projects`
-
-List all vendor contracts/projects with summary data.
-
-**Response:**
-```json
-[
-  {
-    "project_id": "abc123...",
-    "name": "Project Name",
-    "status": "active",
-    "total_funded": 1000000000000,
-    "total_disbursed": 500000000000,
-    "milestone_count": 5,
-    "completed_milestones": 2
-  }
-]
-```
-
-#### `GET /api/projects/:project_id`
-
-Get a single project by ID.
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `project_id` | string | Project identifier |
-
-**Response:**
-```json
-{
-  "project_id": "abc123...",
-  "name": "Project Name",
-  "status": "active",
-  "total_funded": 1000000000000,
-  "total_disbursed": 500000000000,
-  "milestones": [...],
-  "events": [...]
-}
-```
-
-#### `GET /api/projects/:project_id/milestones`
-
-Get milestones for a specific project.
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `project_id` | string | Project identifier |
-
-**Response:**
-```json
-[
-  {
-    "milestone_id": 1,
-    "title": "Milestone 1",
-    "status": "completed",
-    "amount": 200000000000
-  }
-]
-```
-
-#### `GET /api/projects/:project_id/events`
-
-Get events for a specific project.
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `project_id` | string | Project identifier |
-
-**Response:**
-```json
-[
-  {
-    "tx_hash": "abc123...",
-    "event_type": "fund",
-    "slot": 160964954,
-    "block_time": 1704067200
-  }
-]
-```
-
----
-
-## Treasury
-
-#### `GET /api/treasury`
-
-List treasury contract instances.
-
-**Response:**
-```json
-[
-  {
-    "instance": "9e65e4ed...",
-    "name": "Treasury Reserve",
-    "balance": 264568247000000,
-    "project_count": 10
-  }
-]
-```
-
-#### `GET /api/treasury/:instance`
-
-Get a specific treasury contract by instance ID.
-
-**Path Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `instance` | string | Treasury instance identifier |
-
-**Response:**
-```json
-{
-  "instance": "9e65e4ed...",
-  "name": "Treasury Reserve",
-  "balance": 264568247000000,
-  "projects": [...]
-}
-```
-
----
-
-## Events
-
-#### `GET /api/events`
-
-List all processed treasury events.
-
-**Response:**
-```json
-[
-  {
-    "tx_hash": "abc123...",
-    "event_type": "fund",
-    "slot": 160964954,
-    "block_number": 12125945,
-    "block_time": 1704067200,
-    "metadata": {...}
-  }
-]
-```
+| View | Description |
+|------|-------------|
+| `v_treasury_summary` | Treasury with statistics and financials |
+| `v_vendor_contracts_summary` | Projects with milestone counts and financials |
+| `v_events_with_context` | Events with treasury/project/milestone context |
+| `v_financial_summary` | Allocated vs disbursed vs remaining |
+| `v_milestone_timeline` | Milestones with project context |

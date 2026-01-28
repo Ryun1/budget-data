@@ -1,9 +1,5 @@
-pub mod transactions;
-pub mod stats;
-pub mod fund;
-pub mod disburse;
-pub mod withdraw;
-pub mod initialize;
-pub mod projects;
-pub mod treasury;
-pub mod events;
+//! API Routes
+//!
+//! All routes are under the v1 namespace.
+
+pub mod v1;

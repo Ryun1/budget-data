@@ -32,8 +32,9 @@ budget-data/
 ├── api/                     # Rust API backend
 │   ├── src/
 │   │   ├── main.rs
-│   │   ├── routes/          # API endpoints
-│   │   ├── models/          # Data models
+│   │   ├── routes/v1/       # V1 API endpoints
+│   │   ├── models/v1.rs     # API models with OpenAPI
+│   │   ├── openapi.rs       # Swagger/OpenAPI config
 │   │   └── db/              # Database utilities
 │   ├── Cargo.toml
 │   └── README.md            # Full API documentation
@@ -41,7 +42,7 @@ budget-data/
 ├── docs/                    # Documentation
 │   └── architecture.md      # Data flow diagrams
 ├── database/
-│   └── init/                # Schema initialization
+│   └── schema/              # Schema definitions
 ├── scripts/                # Utility shell scripts
 ├── .github/                # CI/CD workflows
 ├── docker-compose.yml
@@ -75,8 +76,11 @@ This starts:
 curl http://localhost:8080/health
 # Returns: OK
 
-# Get treasury statistics
-curl http://localhost:8080/api/stats
+# Get API status
+curl http://localhost:8080/api/v1/status
+
+# View interactive API docs
+open http://localhost:8080/docs
 
 # Check indexer sync status
 curl http://localhost:8081/api/v1/blocks/latest
@@ -86,25 +90,49 @@ curl http://localhost:8081/api/v1/blocks/latest
 
 Base URL: `http://localhost:8080`
 
+Interactive documentation available at `/docs` (Swagger UI).
+
+### Core Endpoints
+
 | Endpoint | Description |
 |----------|-------------|
 | `GET /health` | Health check |
-| `GET /api/stats` | Statistics (TOM tx count, balance, latest block) |
-| `GET /api/transactions` | List TOM transactions (with pagination & filters) |
-| `GET /api/transactions/:tx_hash` | Get TOM transaction by hash |
-| `GET /api/fund` | List Fund events |
-| `GET /api/disburse` | List Disburse events |
-| `GET /api/withdraw` | List Withdraw events |
-| `GET /api/initialize` | List Initialize events |
-| `GET /api/projects` | List all projects (vendor contracts) |
-| `GET /api/projects/:project_id` | Get project by ID |
-| `GET /api/projects/:project_id/milestones` | Get project milestones |
-| `GET /api/projects/:project_id/events` | Get project events |
-| `GET /api/projects/:project_id/utxos` | Get project UTXOs |
-| `GET /api/treasury` | List treasury contract instances |
-| `GET /api/treasury/:instance` | Get treasury contract by instance |
-| `GET /api/treasury/:instance/utxos` | Get treasury UTXOs |
-| `GET /api/events` | List processed TOM events with context |
+| `GET /docs` | Swagger UI (interactive API docs) |
+| `GET /api/v1/status` | API status and sync info |
+| `GET /api/v1/statistics` | Comprehensive statistics |
+
+### Treasury
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/treasury` | Treasury contract details with statistics |
+| `GET /api/v1/treasury/utxos` | Treasury UTXOs |
+| `GET /api/v1/treasury/events` | Treasury-level events |
+
+### Vendor Contracts (Projects)
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/vendor-contracts` | List all vendor contracts (with pagination, filtering, search) |
+| `GET /api/v1/vendor-contracts/:project_id` | Get vendor contract details |
+| `GET /api/v1/vendor-contracts/:project_id/milestones` | Get project milestones |
+| `GET /api/v1/vendor-contracts/:project_id/events` | Get project event history |
+| `GET /api/v1/vendor-contracts/:project_id/utxos` | Get project UTXOs |
+
+### Milestones
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/milestones` | List all milestones (with pagination, filtering) |
+| `GET /api/v1/milestones/:id` | Get milestone details |
+
+### Events
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/v1/events` | List all events (with pagination, filtering) |
+| `GET /api/v1/events/recent` | Recent activity feed |
+| `GET /api/v1/events/:tx_hash` | Get event by transaction hash |
 
 **[Full API Documentation →](api/README.md)**
 
@@ -158,13 +186,25 @@ Edit `indexer/application.properties` to modify sync settings.
 
 ### Schema
 
-The system uses the **yaci_store** schema with plugin-filtered data:
+The system uses two schemas:
+
+**yaci_store** - Raw blockchain data from YACI Store indexer:
 
 | Table | Description | Filtering |
 |-------|-------------|-----------|
 | `yaci_store.block` | Blockchain blocks | All blocks stored |
 | `yaci_store.address_utxo` | Treasury UTXOs | Only treasury stake credential |
 | `yaci_store.transaction_metadata` | TOM metadata | Only label 1694 |
+
+**treasury** - Normalized application data:
+
+| Table | Description |
+|-------|-------------|
+| `treasury.treasury_contracts` | Treasury reserve contracts (TRSC) |
+| `treasury.vendor_contracts` | Vendor/project contracts (PSSC) |
+| `treasury.milestones` | Project milestones |
+| `treasury.events` | All TOM event audit log |
+| `treasury.utxos` | UTXO tracking for event linking |
 
 ### Connecting to Database
 
@@ -182,16 +222,18 @@ psql -h localhost -p 5433 -U postgres -d treasury_data
 -- Latest synced block
 SELECT * FROM yaci_store.block ORDER BY number DESC LIMIT 5;
 
--- Treasury UTXOs (filtered to treasury addresses)
-SELECT owner_addr, SUM(lovelace_amount) / 1000000 as ada_balance
-FROM yaci_store.address_utxo
-GROUP BY owner_addr;
+-- Treasury summary
+SELECT * FROM treasury.v_treasury_summary;
 
--- TOM metadata (label 1694 transactions)
-SELECT tx_hash, slot, body::jsonb->'body'->>'event' as event
-FROM yaci_store.transaction_metadata
-WHERE label = '1694'
-ORDER BY slot DESC LIMIT 10;
+-- Vendor contracts with financials
+SELECT project_id, project_name, status,
+       initial_amount_lovelace / 1000000 as allocated_ada,
+       total_disbursed_lovelace / 1000000 as disbursed_ada
+FROM treasury.v_vendor_contracts_summary;
+
+-- Recent events
+SELECT * FROM treasury.v_events_with_context
+ORDER BY block_time DESC LIMIT 10;
 ```
 
 ### Plugin Filtering
@@ -228,6 +270,7 @@ This project includes a Render blueprint for easy cloud deployment.
 
 4. After deployment:
    - API: `https://treasury-api-xxxx.onrender.com/health`
+   - Swagger UI: `https://treasury-api-xxxx.onrender.com/docs`
    - Indexer: `https://treasury-indexer-xxxx.onrender.com/actuator/health`
 
 ### Resource Requirements
