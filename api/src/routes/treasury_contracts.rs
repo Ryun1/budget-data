@@ -22,10 +22,10 @@ pub struct TreasuryAddress {
     pub latest_slot: Option<i64>,
 }
 
-/// List treasury addresses (vendor contracts and treasury reserve)
+/// List treasury contract addresses with aggregated balances
 /// These are addresses filtered by the YACI Store plugin to only include
 /// addresses with the treasury stake credential
-pub async fn list_vendor_contracts(
+pub async fn list_treasury_contracts(
     Extension(pool): Extension<PgPool>,
 ) -> Result<Json<Vec<TreasuryAddress>>, StatusCode> {
     let addresses = sqlx::query_as::<_, TreasuryAddress>(

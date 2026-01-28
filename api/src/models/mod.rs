@@ -257,7 +257,7 @@ pub struct Transaction {
     pub metadata: Option<serde_json::Value>,
 }
 
-/// Treasury address for /api/vendor-contracts (legacy)
+/// Treasury address for /api/treasury-contracts
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct TreasuryAddress {
     pub address: String,

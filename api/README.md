@@ -202,7 +202,7 @@ List treasury UTXOs (filtered by stake credential).
 
 ### Treasury Addresses
 
-#### `GET /api/vendor-contracts`
+#### `GET /api/treasury-contracts`
 
 List treasury addresses (aggregated by address with balances).
 
@@ -358,3 +358,155 @@ The YACI Store indexer uses plugins to filter data:
 - **Metadata**: Only label 1694 (TOM standard)
 
 This reduces database size significantly while keeping all treasury-relevant data.
+
+---
+
+## Projects
+
+#### `GET /api/projects`
+
+List all vendor contracts/projects with summary data.
+
+**Response:**
+```json
+[
+  {
+    "project_id": "abc123...",
+    "name": "Project Name",
+    "status": "active",
+    "total_funded": 1000000000000,
+    "total_disbursed": 500000000000,
+    "milestone_count": 5,
+    "completed_milestones": 2
+  }
+]
+```
+
+#### `GET /api/projects/:project_id`
+
+Get a single project by ID.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project_id` | string | Project identifier |
+
+**Response:**
+```json
+{
+  "project_id": "abc123...",
+  "name": "Project Name",
+  "status": "active",
+  "total_funded": 1000000000000,
+  "total_disbursed": 500000000000,
+  "milestones": [...],
+  "events": [...]
+}
+```
+
+#### `GET /api/projects/:project_id/milestones`
+
+Get milestones for a specific project.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project_id` | string | Project identifier |
+
+**Response:**
+```json
+[
+  {
+    "milestone_id": 1,
+    "title": "Milestone 1",
+    "status": "completed",
+    "amount": 200000000000
+  }
+]
+```
+
+#### `GET /api/projects/:project_id/events`
+
+Get events for a specific project.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project_id` | string | Project identifier |
+
+**Response:**
+```json
+[
+  {
+    "tx_hash": "abc123...",
+    "event_type": "fund",
+    "slot": 160964954,
+    "block_time": 1704067200
+  }
+]
+```
+
+---
+
+## Treasury
+
+#### `GET /api/treasury`
+
+List treasury contract instances.
+
+**Response:**
+```json
+[
+  {
+    "instance": "9e65e4ed...",
+    "name": "Treasury Reserve",
+    "balance": 264568247000000,
+    "project_count": 10
+  }
+]
+```
+
+#### `GET /api/treasury/:instance`
+
+Get a specific treasury contract by instance ID.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `instance` | string | Treasury instance identifier |
+
+**Response:**
+```json
+{
+  "instance": "9e65e4ed...",
+  "name": "Treasury Reserve",
+  "balance": 264568247000000,
+  "projects": [...]
+}
+```
+
+---
+
+## Events
+
+#### `GET /api/events`
+
+List all processed treasury events.
+
+**Response:**
+```json
+[
+  {
+    "tx_hash": "abc123...",
+    "event_type": "fund",
+    "slot": 160964954,
+    "block_number": 12125945,
+    "block_time": 1704067200,
+    "metadata": {...}
+  }
+]
+```

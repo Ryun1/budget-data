@@ -37,7 +37,7 @@ export default function Transactions() {
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
           <Link href="/transactions">Transactions</Link>
-          <Link href="/vendor-contracts">Treasury Addresses</Link>
+          <Link href="/treasury-contracts">Treasury Addresses</Link>
           <Link href="/events">Fund Flows</Link>
         </nav>
       </div>

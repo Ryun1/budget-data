@@ -37,7 +37,7 @@ export interface Utxo {
   block_number: number | null;
 }
 
-// Treasury address from /api/vendor-contracts
+// Treasury address from /api/treasury-contracts
 export interface TreasuryAddress {
   address: string;
   stake_credential: string | null;
@@ -238,7 +238,7 @@ export async function getUtxos(): Promise<Utxo[]> {
 
 export async function getTreasuryAddresses(): Promise<TreasuryAddress[]> {
   try {
-    const response = await fetch(`${API_URL}/api/vendor-contracts`);
+    const response = await fetch(`${API_URL}/api/treasury-contracts`);
     if (!response.ok) return [];
     return await response.json();
   } catch (error) {

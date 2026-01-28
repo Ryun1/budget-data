@@ -77,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/transactions", get(transactions::list_transactions))
         .route("/api/transactions/:tx_hash", get(transactions::get_transaction))
         .route("/api/utxos", get(utxos::list_utxos))
-        .route("/api/vendor-contracts", get(vendor_contracts::list_vendor_contracts))
+        .route("/api/treasury-contracts", get(treasury_contracts::list_treasury_contracts))
         .route("/api/fund-flows", get(fund_flows::list_fund_flows))
         .route("/api/fund", get(fund::list_fund_transactions))
         .route("/api/disburse", get(disburse::list_disburse_transactions))
