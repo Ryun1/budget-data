@@ -45,13 +45,14 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # IMPORTANT: Update these URLs after the API is deployed
-      # Replace with your actual API URL, e.g., https://treasury-api-xxxx.onrender.com
+      # IMPORTANT: Replace this URL after first deployment
+      # Get the actual URL from: Render Dashboard > treasury-api > Settings
       - key: NEXT_PUBLIC_API_URL
-        value: https://treasury-api-unry.onrender.com
+        value: https://YOUR-API-URL.onrender.com  # <-- UPDATE THIS
       # Server-side API URL (same as NEXT_PUBLIC_API_URL for Render)
+      # IMPORTANT: Replace this URL after first deployment
       - key: API_URL
-        value: https://treasury-api-unry.onrender.com
+        value: https://YOUR-API-URL.onrender.com  # <-- UPDATE THIS
     autoDeploy: true
 
   # YACI Store Indexer - Syncs Cardano blockchain data

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getTreasuryAddresses, formatAda, truncateHash, type TreasuryAddress } from '../lib/api'
 
-export default function VendorContracts() {
+export default function TreasuryAddresses() {
   const [addresses, setAddresses] = useState<TreasuryAddress[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -33,8 +33,8 @@ export default function VendorContracts() {
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
           <Link href="/transactions">Transactions</Link>
-          <Link href="/vendor-contracts">Treasury Addresses</Link>
-          <Link href="/events">Fund Flows</Link>
+          <Link href="/treasury-addresses">Treasury Addresses</Link>
+          <Link href="/events">Treasury Operations</Link>
         </nav>
       </div>
 
@@ -63,7 +63,7 @@ export default function VendorContracts() {
             </div>
 
             <div className="card">
-              <h2>Treasury Contract Addresses ({addresses.length})</h2>
+              <h2>Treasury Addresses ({addresses.length})</h2>
               {addresses.length > 0 ? (
                 <table className="table">
                   <thead>

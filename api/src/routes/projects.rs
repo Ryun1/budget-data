@@ -8,12 +8,50 @@ use sqlx::PgPool;
 
 use crate::models::{MilestoneResponse, ProjectDetail, ProjectEvent, ProjectSummary, ProjectUtxo};
 
+/// Get UTXOs for a specific project
+pub async fn get_project_utxos(
+    Extension(pool): Extension<PgPool>,
+    Path(project_id): Path<String>,
+) -> Result<Json<Vec<ProjectUtxo>>, StatusCode> {
+    let utxos = sqlx::query_as::<_, ProjectUtxo>(
+        r#"
+        SELECT
+            u.tx_hash,
+            u.output_index,
+            u.lovelace_amount,
+            u.slot,
+            u.block_number
+        FROM treasury.utxos u
+        JOIN treasury.vendor_contracts vc ON vc.id = u.vendor_contract_id
+        WHERE vc.project_id = $1 AND NOT u.spent
+        ORDER BY u.slot DESC
+        "#
+    )
+    .bind(&project_id)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database query error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(utxos))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ProjectsQuery {
     pub page: Option<u32>,
     pub limit: Option<u32>,
     pub search: Option<String>,
 }
+
+// =============================================================================
+// Projects API
+// =============================================================================
+// "Projects" is the user-facing term for what are internally called "vendor contracts"
+// (PSSC - Payment Streaming Smart Contracts) in the database.
+// The treasury.vendor_contracts table stores these records.
+// =============================================================================
 
 /// List all projects (vendor contracts) from the normalized treasury schema
 pub async fn list_projects(

@@ -37,10 +37,13 @@ budget-data/
 │   │   └── db/              # Database utilities
 │   ├── Cargo.toml
 │   └── README.md            # Full API documentation
+├── frontend/               # Next.js React dashboard
 ├── docs/                    # Documentation
 │   └── architecture.md      # Data flow diagrams
 ├── database/
 │   └── init/                # Schema initialization
+├── scripts/                # Utility shell scripts
+├── .github/                # CI/CD workflows
 ├── docker-compose.yml
 └── dev.sh                   # Development helper script
 ```
@@ -87,16 +90,21 @@ Base URL: `http://localhost:8080`
 |----------|-------------|
 | `GET /health` | Health check |
 | `GET /api/stats` | Statistics (TOM tx count, balance, latest block) |
-| `GET /api/balance` | Current treasury balance |
 | `GET /api/transactions` | List TOM transactions (with pagination & filters) |
 | `GET /api/transactions/:tx_hash` | Get TOM transaction by hash |
 | `GET /api/fund` | List Fund events |
 | `GET /api/disburse` | List Disburse events |
 | `GET /api/withdraw` | List Withdraw events |
 | `GET /api/initialize` | List Initialize events |
-| `GET /api/utxos` | List treasury UTXOs |
-| `GET /api/vendor-contracts` | List treasury addresses with balances |
-| `GET /api/fund-flows` | List all TOM events |
+| `GET /api/projects` | List all projects (vendor contracts) |
+| `GET /api/projects/:project_id` | Get project by ID |
+| `GET /api/projects/:project_id/milestones` | Get project milestones |
+| `GET /api/projects/:project_id/events` | Get project events |
+| `GET /api/projects/:project_id/utxos` | Get project UTXOs |
+| `GET /api/treasury` | List treasury contract instances |
+| `GET /api/treasury/:instance` | Get treasury contract by instance |
+| `GET /api/treasury/:instance/utxos` | Get treasury UTXOs |
+| `GET /api/events` | List processed TOM events with context |
 
 **[Full API Documentation →](api/README.md)**
 
@@ -241,7 +249,7 @@ Set automatically by Render from the database:
 - [Architecture & Data Flow](docs/architecture.md) - System architecture and data flow diagrams
 - [API Documentation](api/README.md) - Full API reference
 - [Indexer Setup](indexer/README.md) - YACI Store configuration
-- [Database Migrations](database/migrations/) - Schema definitions
+- [Database Schema](database/schema/) - Treasury schema definitions
 
 ## License
 

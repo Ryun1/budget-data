@@ -67,7 +67,7 @@ export default function Home() {
         <nav className="nav">
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
-          <Link href="/events">Fund Flow</Link>
+          <Link href="/events">Treasury Operations</Link>
         </nav>
       </div>
 
@@ -78,8 +78,8 @@ export default function Home() {
             value={balance ? formatAda(balance.lovelace) + ' ADA' : '-'}
           />
           <StatsCard
-            title="TOM Transactions"
-            value={stats?.tom_transactions || 0}
+            title="TOM Events"
+            value={stats?.tom_events || 0}
           />
           <StatsCard
             title="Treasury Addresses"
@@ -134,7 +134,7 @@ export default function Home() {
           {transactions.length > 0 && (
             <div style={{ marginTop: '1rem' }}>
               <Link href="/events" style={{ color: '#0066cc' }}>
-                View all fund flows →
+                View all treasury operations →
               </Link>
             </div>
           )}

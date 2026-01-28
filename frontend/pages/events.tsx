@@ -1,34 +1,34 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getFundFlows, formatTime, truncateHash, type FundFlow } from '../lib/api'
+import { getTreasuryOperations, formatTime, truncateHash, type TreasuryOperation } from '../lib/api'
 
 export default function Events() {
-  const [flows, setFlows] = useState<FundFlow[]>([])
+  const [operations, setOperations] = useState<TreasuryOperation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('')
 
   useEffect(() => {
-    async function fetchFlows() {
+    async function fetchOperations() {
       try {
-        const data = await getFundFlows()
-        setFlows(data)
+        const data = await getTreasuryOperations()
+        setOperations(data)
         setLoading(false)
       } catch (err) {
-        console.error('Error fetching fund flows:', err)
-        setError('Failed to load fund flows')
+        console.error('Error fetching treasury operations:', err)
+        setError('Failed to load treasury operations')
         setLoading(false)
       }
     }
-    fetchFlows()
+    fetchOperations()
   }, [])
 
-  const filteredFlows = filter
-    ? flows.filter(f => f.action_type?.toLowerCase() === filter.toLowerCase())
-    : flows
+  const filteredOperations = filter
+    ? operations.filter(op => op.action_type?.toLowerCase() === filter.toLowerCase())
+    : operations
 
-  const eventCounts = flows.reduce((acc, flow) => {
-    const type = flow.action_type || 'unknown'
+  const eventCounts = operations.reduce((acc, op) => {
+    const type = op.action_type || 'unknown'
     acc[type] = (acc[type] || 0) + 1
     return acc
   }, {} as Record<string, number>)
@@ -36,11 +36,11 @@ export default function Events() {
   return (
     <div>
       <div className="header">
-        <h1>Fund Flow</h1>
+        <h1>Treasury Operations</h1>
         <nav className="nav">
           <Link href="/">Dashboard</Link>
           <Link href="/projects">Projects</Link>
-          <Link href="/events">Fund Flow</Link>
+          <Link href="/events">Treasury Operations</Link>
         </nav>
       </div>
 
@@ -63,7 +63,7 @@ export default function Events() {
             </div>
 
             <div className="card">
-              <h2>Treasury Fund Flows ({filteredFlows.length})</h2>
+              <h2>Treasury Operations ({filteredOperations.length})</h2>
               <div style={{ marginBottom: '1rem' }}>
                 <label htmlFor="filter" style={{ marginRight: '0.5rem' }}>Filter by event:</label>
                 <select
@@ -86,7 +86,7 @@ export default function Events() {
                 </select>
               </div>
 
-              {filteredFlows.length > 0 ? (
+              {filteredOperations.length > 0 ? (
                 <table className="table">
                   <thead>
                     <tr>
@@ -99,23 +99,23 @@ export default function Events() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredFlows.map((flow) => (
-                      <tr key={flow.tx_hash}>
+                    {filteredOperations.map((op) => (
+                      <tr key={op.tx_hash}>
                         <td>
-                          <code style={{ fontSize: '0.875rem' }} title={flow.tx_hash}>
-                            {truncateHash(flow.tx_hash, 12)}
+                          <code style={{ fontSize: '0.875rem' }} title={op.tx_hash}>
+                            {truncateHash(op.tx_hash, 12)}
                           </code>
                         </td>
                         <td>
-                          <span className={`status ${flow.action_type?.toLowerCase() || ''}`}>
-                            {flow.action_type || '-'}
+                          <span className={`status ${op.action_type?.toLowerCase() || ''}`}>
+                            {op.action_type || '-'}
                           </span>
                         </td>
-                        <td>{flow.destination || '-'}</td>
-                        <td>{flow.block_number?.toLocaleString() || '-'}</td>
-                        <td>{formatTime(flow.block_time)}</td>
+                        <td>{op.destination || '-'}</td>
+                        <td>{op.block_number?.toLocaleString() || '-'}</td>
+                        <td>{formatTime(op.block_time)}</td>
                         <td>
-                          <Link href={`/transactions/${flow.tx_hash}`} style={{ color: '#0066cc' }}>
+                          <Link href={`/transactions/${op.tx_hash}`} style={{ color: '#0066cc' }}>
                             View
                           </Link>
                         </td>
@@ -124,7 +124,7 @@ export default function Events() {
                   </tbody>
                 </table>
               ) : (
-                <p>No fund flows found</p>
+                <p>No treasury operations found</p>
               )}
             </div>
           </>

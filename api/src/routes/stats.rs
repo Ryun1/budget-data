@@ -33,7 +33,7 @@ pub struct DatabaseStats {
 #[derive(Serialize)]
 pub struct StatsResponse {
     /// Number of TOM events
-    tom_transactions: i64,
+    tom_events: i64,
     /// Total balance in treasury UTXOs (ADA)
     total_balance: String,
     /// Total balance in lovelace
@@ -133,7 +133,7 @@ pub async fn get_stats(
     let treasury_total: i64 = treasury_stats.iter().map(|t| t.total_size_bytes).sum();
 
     Ok(Json(StatsResponse {
-        tom_transactions: tom_events.0,
+        tom_events: tom_events.0,
         total_balance: balance_str,
         total_balance_lovelace: lovelace,
         treasury_addresses: addresses_count.0,
