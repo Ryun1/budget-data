@@ -98,8 +98,8 @@ Base URL: `http://localhost:8080`
 | `GET /api/withdraw` | List Withdraw events |
 | `GET /api/initialize` | List Initialize events |
 | `GET /api/utxos` | List treasury UTXOs |
-| `GET /api/treasury-contracts` | List treasury addresses with balances |
-| `GET /api/fund-flows` | List all TOM events |
+| `GET /api/treasury-addresses` | List treasury addresses with balances |
+| `GET /api/treasury-operations` | List all TOM events |
 | `GET /api/projects` | List all projects |
 | `GET /api/projects/:project_id` | Get project by ID |
 | `GET /api/projects/:project_id/milestones` | Get project milestones |

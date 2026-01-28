@@ -15,6 +15,14 @@ pub struct ProjectsQuery {
     pub search: Option<String>,
 }
 
+// =============================================================================
+// Projects API
+// =============================================================================
+// "Projects" is the user-facing term for what are internally called "vendor contracts"
+// (PSSC - Payment Streaming Smart Contracts) in the database.
+// The treasury.vendor_contracts table stores these records.
+// =============================================================================
+
 /// List all projects (vendor contracts) from the normalized treasury schema
 pub async fn list_projects(
     Extension(pool): Extension<PgPool>,

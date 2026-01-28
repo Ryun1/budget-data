@@ -30,5 +30,5 @@ npm start
 - `/projects/[id]` - Project details with milestones and events
 - `/transactions` - List treasury transactions
 - `/transactions/[hash]` - Transaction details
-- `/treasury-contracts` - List treasury contracts with balances
-- `/events` - List all treasury events
+- `/treasury-addresses` - List treasury addresses with balances
+- `/events` - List all treasury operations

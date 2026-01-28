@@ -226,7 +226,7 @@ pub struct ProjectDetail {
 /// Stats response
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Stats {
-    pub tom_transactions: i64,
+    pub tom_events: i64,
     pub total_balance: String,
     pub total_balance_lovelace: i64,
     pub treasury_addresses: i64,
@@ -257,7 +257,7 @@ pub struct Transaction {
     pub metadata: Option<serde_json::Value>,
 }
 
-/// Treasury address for /api/treasury-contracts
+/// Treasury address for /api/treasury-addresses
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct TreasuryAddress {
     pub address: String,

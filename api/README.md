@@ -45,7 +45,7 @@ Get aggregated statistics about treasury operations.
 **Response:**
 ```json
 {
-  "tom_transactions": 21,
+  "tom_events": 21,
   "total_balance": "264568247.000000",
   "total_balance_lovelace": 264568247000000,
   "treasury_addresses": 1,
@@ -55,7 +55,7 @@ Get aggregated statistics about treasury operations.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `tom_transactions` | integer | Number of TOM metadata transactions |
+| `tom_events` | integer | Number of TOM events |
 | `total_balance` | string | Total treasury balance in ADA |
 | `total_balance_lovelace` | integer | Total treasury balance in lovelace |
 | `treasury_addresses` | integer | Number of unique treasury addresses |
@@ -202,7 +202,7 @@ List treasury UTXOs (filtered by stake credential).
 
 ### Treasury Addresses
 
-#### `GET /api/treasury-contracts`
+#### `GET /api/treasury-addresses`
 
 List treasury addresses (aggregated by address with balances).
 
@@ -229,11 +229,12 @@ List treasury addresses (aggregated by address with balances).
 
 ---
 
-### Fund Flows
+### Treasury Operations
 
-#### `GET /api/fund-flows`
+#### `GET /api/treasury-operations`
 
-List fund flow records extracted from TOM metadata.
+List treasury operations (TOM events) extracted from metadata.
+Includes all TOM events: fund, disburse, withdraw, initialize, complete, pause, resume, modify, cancel, sweep.
 
 **Response:**
 ```json

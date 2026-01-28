@@ -6,10 +6,11 @@ use axum::{
 use serde::Serialize;
 use sqlx::PgPool;
 
-/// Simplified fund flow from TOM metadata
+/// Treasury operation (TOM event) from metadata
 /// Extracted from transaction metadata with label 1694
+/// Includes all TOM events: fund, disburse, withdraw, initialize, complete, pause, resume, modify, cancel, sweep
 #[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct FundFlow {
+pub struct TreasuryOperation {
     pub tx_hash: String,
     pub slot: Option<i64>,
     pub block_number: Option<i64>,
@@ -22,12 +23,12 @@ pub struct FundFlow {
     pub metadata: Option<serde_json::Value>,
 }
 
-/// List fund flows extracted from TOM metadata
-/// Shows treasury operations including fund, disburse, and withdraw actions
-pub async fn list_fund_flows(
+/// List treasury operations extracted from TOM metadata
+/// Shows all TOM events including fund, disburse, withdraw, initialize, complete, etc.
+pub async fn list_treasury_operations(
     Extension(pool): Extension<PgPool>,
-) -> Result<Json<Vec<FundFlow>>, StatusCode> {
-    let flows = sqlx::query_as::<_, FundFlow>(
+) -> Result<Json<Vec<TreasuryOperation>>, StatusCode> {
+    let operations = sqlx::query_as::<_, TreasuryOperation>(
         r#"
         SELECT
             m.tx_hash,
@@ -51,5 +52,5 @@ pub async fn list_fund_flows(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    Ok(Json(flows))
+    Ok(Json(operations))
 }

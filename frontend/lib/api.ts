@@ -2,7 +2,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // Stats response from /api/stats
 export interface Stats {
-  tom_transactions: number;
+  tom_events: number;
   total_balance: string;
   total_balance_lovelace: number;
   treasury_addresses: number;
@@ -37,7 +37,7 @@ export interface Utxo {
   block_number: number | null;
 }
 
-// Treasury address from /api/treasury-contracts
+// Treasury address from /api/treasury-addresses
 export interface TreasuryAddress {
   address: string;
   stake_credential: string | null;
@@ -46,8 +46,9 @@ export interface TreasuryAddress {
   latest_slot: number | null;
 }
 
-// Fund flow from /api/fund-flows
-export interface FundFlow {
+// Treasury operation from /api/treasury-operations
+// Includes all TOM events: fund, disburse, withdraw, initialize, complete, pause, resume, modify, cancel, sweep
+export interface TreasuryOperation {
   tx_hash: string;
   slot: number | null;
   block_number: number | null;
@@ -57,7 +58,9 @@ export interface FundFlow {
   metadata: any;
 }
 
-// Project (vendor contract) from /api/projects - now uses treasury.v_vendor_contracts_summary
+// Project from /api/projects - now uses treasury.v_vendor_contracts_summary
+// Note: "Projects" is the user-facing term for what are internally called "vendor contracts" (PSSC)
+// in the database (treasury.vendor_contracts table)
 export interface Project {
   id: number;
   project_id: string;
@@ -238,7 +241,7 @@ export async function getUtxos(): Promise<Utxo[]> {
 
 export async function getTreasuryAddresses(): Promise<TreasuryAddress[]> {
   try {
-    const response = await fetch(`${API_URL}/api/treasury-contracts`);
+    const response = await fetch(`${API_URL}/api/treasury-addresses`);
     if (!response.ok) return [];
     return await response.json();
   } catch (error) {
@@ -247,13 +250,13 @@ export async function getTreasuryAddresses(): Promise<TreasuryAddress[]> {
   }
 }
 
-export async function getFundFlows(): Promise<FundFlow[]> {
+export async function getTreasuryOperations(): Promise<TreasuryOperation[]> {
   try {
-    const response = await fetch(`${API_URL}/api/fund-flows`);
+    const response = await fetch(`${API_URL}/api/treasury-operations`);
     if (!response.ok) return [];
     return await response.json();
   } catch (error) {
-    console.error('Error fetching fund flows:', error);
+    console.error('Error fetching treasury operations:', error);
     return [];
   }
 }
