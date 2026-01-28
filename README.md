@@ -99,14 +99,14 @@ Base URL: `http://localhost:8080`
 | `GET /api/initialize` | List Initialize events |
 | `GET /api/utxos` | List treasury UTXOs |
 | `GET /api/treasury-addresses` | List treasury addresses with balances |
-| `GET /api/treasury-operations` | List all TOM events |
-| `GET /api/projects` | List all projects |
+| `GET /api/treasury-operations` | List TOM operations from raw metadata (legacy) |
+| `GET /api/projects` | List all projects (vendor contracts) |
 | `GET /api/projects/:project_id` | Get project by ID |
 | `GET /api/projects/:project_id/milestones` | Get project milestones |
 | `GET /api/projects/:project_id/events` | Get project events |
-| `GET /api/treasury` | List treasury instances |
-| `GET /api/treasury/:instance` | Get treasury by instance |
-| `GET /api/events` | List all events |
+| `GET /api/treasury` | List treasury contract instances |
+| `GET /api/treasury/:instance` | Get treasury contract by instance |
+| `GET /api/events` | List processed TOM events with context |
 
 **[Full API Documentation →](api/README.md)**
 

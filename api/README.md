@@ -49,7 +49,15 @@ Get aggregated statistics about treasury operations.
   "total_balance": "264568247.000000",
   "total_balance_lovelace": 264568247000000,
   "treasury_addresses": 1,
-  "latest_block": 12296746
+  "latest_block": 12296746,
+  "project_count": 5,
+  "milestone_count": 25,
+  "database": {
+    "yaci_store": [...],
+    "treasury": [...],
+    "yaci_store_total_size": "1.5 GB",
+    "treasury_total_size": "50 MB"
+  }
 }
 ```
 
@@ -60,6 +68,9 @@ Get aggregated statistics about treasury operations.
 | `total_balance_lovelace` | integer | Total treasury balance in lovelace |
 | `treasury_addresses` | integer | Number of unique treasury addresses |
 | `latest_block` | integer | Latest synced block number |
+| `project_count` | integer | Number of projects (vendor contracts) |
+| `milestone_count` | integer | Number of milestones across all projects |
+| `database` | object | Database storage statistics |
 
 ---
 
