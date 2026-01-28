@@ -1,8 +1,5 @@
 pub mod transactions;
 pub mod utxos;
-pub mod balance;
-pub mod treasury_addresses;
-pub mod treasury_operations;
 pub mod stats;
 pub mod fund;
 pub mod disburse;

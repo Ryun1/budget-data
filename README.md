@@ -90,7 +90,6 @@ Base URL: `http://localhost:8080`
 |----------|-------------|
 | `GET /health` | Health check |
 | `GET /api/stats` | Statistics (TOM tx count, balance, latest block) |
-| `GET /api/balance` | Current treasury balance |
 | `GET /api/transactions` | List TOM transactions (with pagination & filters) |
 | `GET /api/transactions/:tx_hash` | Get TOM transaction by hash |
 | `GET /api/fund` | List Fund events |
@@ -98,8 +97,6 @@ Base URL: `http://localhost:8080`
 | `GET /api/withdraw` | List Withdraw events |
 | `GET /api/initialize` | List Initialize events |
 | `GET /api/utxos` | List treasury UTXOs |
-| `GET /api/treasury-addresses` | List treasury addresses with balances |
-| `GET /api/treasury-operations` | List TOM operations from raw metadata (legacy) |
 | `GET /api/projects` | List all projects (vendor contracts) |
 | `GET /api/projects/:project_id` | Get project by ID |
 | `GET /api/projects/:project_id/milestones` | Get project milestones |
