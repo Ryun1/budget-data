@@ -35,11 +35,22 @@ if [ -n "$SPRING_DATASOURCE_URL" ]; then
     echo "Configured database: ${HOST_PORT_DB}"
     echo "Database user: ${SPRING_DATASOURCE_USERNAME}"
 
-    # Parse host and port for psql
-    DB_HOST=$(echo "$HOST_PORT_DB" | sed 's|:.*||')
-    DB_PORT_AND_NAME=$(echo "$HOST_PORT_DB" | sed 's|[^:]*:||')
-    DB_PORT=$(echo "$DB_PORT_AND_NAME" | sed 's|/.*||')
-    DB_NAME=$(echo "$DB_PORT_AND_NAME" | sed 's|[^/]*/||')
+    # Parse host, port, and database name for psql
+    # Handle both host:port/db and host/db formats
+    if echo "$HOST_PORT_DB" | grep -q ':[0-9]'; then
+        # Has explicit port (host:port/database)
+        DB_HOST=$(echo "$HOST_PORT_DB" | sed 's|:.*||')
+        DB_PORT_AND_NAME=$(echo "$HOST_PORT_DB" | sed 's|[^:]*:||')
+        DB_PORT=$(echo "$DB_PORT_AND_NAME" | sed 's|/.*||')
+        DB_NAME=$(echo "$DB_PORT_AND_NAME" | sed 's|[^/]*/||')
+    else
+        # No explicit port (host/database) - default to 5432
+        DB_HOST=$(echo "$HOST_PORT_DB" | sed 's|/.*||')
+        DB_PORT="5432"
+        DB_NAME=$(echo "$HOST_PORT_DB" | sed 's|[^/]*/||')
+    fi
+
+    echo "Parsed connection: host=$DB_HOST port=$DB_PORT database=$DB_NAME"
 
     # Initialize database schema before starting app
     echo "Initializing database schema..."
