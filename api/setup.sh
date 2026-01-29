@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Setup script for Treasury API
+# Setup script for Administration API
 
 set -e
 

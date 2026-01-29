@@ -13,7 +13,7 @@ jobs:
       postgres:
         image: postgres:14
         env:
-          POSTGRES_DB: treasury_data
+          POSTGRES_DB: administration_data
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -41,7 +41,7 @@ jobs:
         working-directory: ./indexer
         run: mvn test
         env:
-          DATABASE_URL: jdbc:postgresql://localhost:5432/treasury_data
+          DATABASE_URL: jdbc:postgresql://localhost:5432/administration_data
           DATABASE_USERNAME: postgres
           DATABASE_PASSWORD: postgres
 
@@ -58,21 +58,3 @@ jobs:
         working-directory: ./api
         run: zig build
 
-  frontend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        working-directory: ./frontend
-        run: npm ci
-      
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build

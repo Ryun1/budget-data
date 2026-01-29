@@ -1,4 +1,4 @@
-# Treasury API Backend
+# Administration API Backend
 
 Rust-based REST API for querying Cardano treasury fund tracking data. Built with Axum framework, SQLx for PostgreSQL, and utoipa for OpenAPI documentation.
 
@@ -541,7 +541,7 @@ cargo build
 
 2. Set up environment variables:
 ```bash
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5433/treasury_data
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5433/administration_data
 ```
 
 3. Run the API:
@@ -561,14 +561,14 @@ cargo build --release
 
 Build the Docker image:
 ```bash
-docker build -t treasury-api .
+docker build -t administration-api .
 ```
 
 Run the container:
 ```bash
 docker run -p 8080:8080 \
-  -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/treasury_data \
-  treasury-api
+  -e DATABASE_URL=postgresql://postgres:postgres@postgres:5432/administration_data \
+  administration-api
 ```
 
 ---

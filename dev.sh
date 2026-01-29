@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Local Development Script for Treasury Fund Tracking System
+# Local Development Script for Administration Data System
 # This script helps start all services for local development
 
 set -e
@@ -121,25 +121,25 @@ case "$COMMAND" in
         
         while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             # Try to check if database exists
-            DB_EXISTS=$(docker-compose exec -T postgres psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='treasury_data'" 2>/dev/null | tr -d '[:space:]' || echo "")
+            DB_EXISTS=$(docker-compose exec -T postgres psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname='administration_data'" 2>/dev/null | tr -d '[:space:]' || echo "")
             if [ "$DB_EXISTS" = "1" ]; then
-                print_success "Database 'treasury_data' exists"
+                print_success "Database 'administration_data' exists"
                 break
             fi
             
             # If database doesn't exist, try to create it
             if [ $RETRY_COUNT -eq 0 ]; then
-                print_info "Database 'treasury_data' does not exist, creating..."
+                print_info "Database 'administration_data' does not exist, creating..."
             fi
             
-            CREATE_RESULT=$(docker-compose exec -T postgres psql -U postgres -c "CREATE DATABASE treasury_data;" 2>&1)
+            CREATE_RESULT=$(docker-compose exec -T postgres psql -U postgres -c "CREATE DATABASE administration_data;" 2>&1)
             CREATE_EXIT_CODE=$?
             
             if [ $CREATE_EXIT_CODE -eq 0 ]; then
-                print_success "Database 'treasury_data' created"
+                print_success "Database 'administration_data' created"
                 break
             elif echo "$CREATE_RESULT" | grep -q "already exists"; then
-                print_success "Database 'treasury_data' already exists"
+                print_success "Database 'administration_data' already exists"
                 break
             else
                 RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -162,7 +162,7 @@ case "$COMMAND" in
         if [ "$INDEXER_AVAILABLE" = true ]; then
             print_info "Starting indexer..."
             docker-compose up -d indexer
-            print_success "Indexer started (check logs with: docker logs treasury-indexer -f)"
+            print_success "Indexer started (check logs with: docker logs administration-indexer -f)"
         else
             print_warning "Skipping indexer (JAR file not found)"
         fi
@@ -175,7 +175,7 @@ case "$COMMAND" in
             
             # Verify we can connect to the database from host before starting API
             print_info "Verifying database connection from host (port 5433)..."
-            if ! PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d treasury_data -c "SELECT 1;" > /dev/null 2>&1; then
+            if ! PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d administration_data -c "SELECT 1;" > /dev/null 2>&1; then
                 print_warning "Cannot connect to database from host. This might be due to a local PostgreSQL on port 5432."
                 print_info "Docker PostgreSQL is mapped to port 5433 to avoid conflicts."
                 sleep 2
@@ -183,11 +183,11 @@ case "$COMMAND" in
             
             cd api
             # Use port 5433 to connect to Docker PostgreSQL (avoids conflict with local PostgreSQL on 5432)
-            DATABASE_URL="postgresql://postgres:postgres@localhost:5433/treasury_data" cargo run
+            DATABASE_URL="postgresql://postgres:postgres@localhost:5433/administration_data" cargo run
         else
             print_info "Starting API (Docker)..."
             docker-compose up -d api
-            print_success "API started (check logs with: docker logs treasury-api -f)"
+            print_success "API started (check logs with: docker logs administration-api -f)"
             print_info "API is available at http://localhost:8080"
         fi
         ;;
@@ -261,7 +261,7 @@ case "$COMMAND" in
         ;;
     
     help|--help|-h)
-        echo "Treasury Fund Tracking System - Local Development Script"
+        echo "Administration Data System - Local Development Script"
         echo ""
         echo "Usage: ./dev.sh [command]"
         echo ""

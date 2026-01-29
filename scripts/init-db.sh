@@ -5,8 +5,8 @@
 
 set -e
 
-CONTAINER_NAME=${1:-"treasury-postgres"}
-DB_NAME=${2:-"treasury_data"}
+CONTAINER_NAME=${1:-"administration-postgres"}
+DB_NAME=${2:-"administration_data"}
 
 echo "Checking if database '$DB_NAME' exists in container '$CONTAINER_NAME'..."
 

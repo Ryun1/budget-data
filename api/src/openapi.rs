@@ -19,7 +19,7 @@ use crate::routes::v1::{
 #[derive(OpenApi)]
 #[openapi(
     info(
-        title = "Cardano Treasury API",
+        title = "Cardano Administration API",
         version = "1.0.0",
         description = "REST API for tracking Cardano treasury contracts and fund disbursements.\n\n## Overview\n\nThis API provides access to treasury contract data, vendor contracts (projects), milestones, and event history for the Cardano treasury system.\n\n## Key Concepts\n\n- **Treasury Contract (TRSC)**: The root treasury reserve contract that holds funds\n- **Vendor Contract (PSSC)**: Project-specific contracts that receive funding from the treasury\n- **Milestone**: Individual deliverables within a vendor contract\n- **Event**: Audit log of all treasury operations (fund, complete, disburse, etc.)\n\n## Response Format\n\nAll responses use a consistent envelope format:\n\n```json\n{\n  \"data\": { ... },\n  \"pagination\": { ... },  // Only for paginated endpoints\n  \"meta\": {\n    \"timestamp\": \"2026-01-28T10:30:00Z\"\n  }\n}\n```\n\n## Amounts\n\nAll monetary amounts are provided in both lovelace (smallest unit) and ADA:\n- `amount_lovelace`: Integer amount in lovelace\n- `amount_ada`: Float amount in ADA (1 ADA = 1,000,000 lovelace)",
         license(

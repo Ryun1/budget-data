@@ -32,7 +32,7 @@ Edit `application.properties` to configure:
 
 1. Build the Docker image:
 ```bash
-docker build -t treasury-indexer ./indexer
+docker build -t administration-indexer ./indexer
 ```
 
 2. Start PostgreSQL (if not using docker-compose):
@@ -42,9 +42,9 @@ docker-compose up -d postgres
 
 3. Run the indexer:
 ```bash
-docker run --rm --network budget-data_treasury-network \
+docker run --rm --network administration-data_administration-network \
   -v $(pwd)/indexer/application.properties:/app/application.properties:ro \
-  treasury-indexer
+  administration-indexer
 ```
 
 Or use docker-compose:
@@ -56,7 +56,7 @@ docker-compose up indexer
 
 Check the logs to ensure the indexer is syncing:
 ```bash
-docker logs treasury-indexer -f
+docker logs administration-indexer -f
 ```
 
 You should see logs indicating blocks are being processed.

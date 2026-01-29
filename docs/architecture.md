@@ -1,6 +1,6 @@
 # Architecture & Data Flow Documentation
 
-This document describes how data flows through the Cardano Treasury Fund Tracking System.
+This document describes how data flows through the Cardano Administration Data System.
 
 ## System Overview
 
@@ -54,8 +54,7 @@ This document describes how data flows through the Cardano Treasury Fund Trackin
                                        │ HTTP/JSON
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              FRONTEND / CLIENTS                                 │
-│                              (Port 3000)                                        │
+│                                  CLIENTS                                        │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 

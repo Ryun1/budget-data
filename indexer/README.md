@@ -65,7 +65,7 @@ Remove these lines to sync from genesis.
 Control what data is indexed:
 
 ```properties
-# Enabled (required for treasury tracking)
+# Enabled (required for administration data tracking)
 store.blocks.enabled=true
 store.transaction.enabled=true
 store.utxo.enabled=true
@@ -196,11 +196,11 @@ Configuration is mounted at `/app/config/application.properties`.
 
 ```bash
 # Current position
-docker exec treasury-postgres psql -U postgres -d treasury_data \
+docker exec administration-postgres psql -U postgres -d administration_data \
   -c "SELECT * FROM yaci_store.cursor_;"
 
 # Block count
-docker exec treasury-postgres psql -U postgres -d treasury_data \
+docker exec administration-postgres psql -U postgres -d administration_data \
   -c "SELECT COUNT(*) FROM yaci_store.block;"
 ```
 
@@ -217,7 +217,7 @@ docker-compose restart indexer
 ./dev.sh stop
 
 # Remove database volume
-docker volume rm budget-data_postgres_data
+docker volume rm administration-data_postgres_data
 
 # Start fresh
 ./dev.sh start

@@ -2,10 +2,10 @@
 
 use sqlx::PgPool;
 
-/// Initialize the treasury schema if it doesn't exist
+/// Initialize the administration schema if it doesn't exist
 /// This ensures all required tables, indexes, and views are created
-pub async fn init_treasury_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
-    tracing::info!("Initializing treasury schema...");
+pub async fn init_administration_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
+    tracing::info!("Initializing administration schema...");
 
     // Create schema
     sqlx::query("CREATE SCHEMA IF NOT EXISTS treasury")
@@ -348,6 +348,6 @@ pub async fn init_treasury_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
         GROUP BY tc.id
     "#).execute(pool).await?;
 
-    tracing::info!("Treasury schema initialized successfully");
+    tracing::info!("Administration schema initialized successfully");
     Ok(())
 }

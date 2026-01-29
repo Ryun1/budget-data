@@ -1,4 +1,4 @@
--- Treasury Fund Tracking - Normalized Schema
+-- Administration Data - Normalized Schema
 -- Processes TOM (Treasury Oversight Metadata) events from YACI Store
 
 -- Create treasury schema

@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     // Database connection with retry logic
     // Default to port 5433 to avoid conflict with local PostgreSQL on 5432
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5433/treasury_data".to_string());
+        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5433/administration_data".to_string());
 
     tracing::info!("Connecting to database: {}", database_url);
 
@@ -64,9 +64,9 @@ async fn main() -> anyhow::Result<()> {
     let pool = pool.expect("Pool should be initialized after retries");
     tracing::info!("Database connection established");
 
-    // Initialize treasury schema (creates tables if they don't exist)
-    if let Err(e) = db::init_treasury_schema(&pool).await {
-        tracing::error!("Failed to initialize treasury schema: {}", e);
+    // Initialize administration schema (creates tables if they don't exist)
+    if let Err(e) = db::init_administration_schema(&pool).await {
+        tracing::error!("Failed to initialize administration schema: {}", e);
         return Err(e.into());
     }
 

@@ -29,10 +29,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from builder
-COPY --from=builder /app/target/release/treasury-api /app/treasury-api
+COPY --from=builder /app/target/release/administration-api /app/administration-api
 
 # Expose port
 EXPOSE 8080
 
 # Run the application
-CMD ["/app/treasury-api"]
+CMD ["/app/administration-api"]

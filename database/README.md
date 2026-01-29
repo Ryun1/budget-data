@@ -1,6 +1,6 @@
 # Database Schema
 
-This directory contains database schema definitions for the treasury fund tracking system.
+This directory contains database schema definitions for the administration data system.
 
 ## Schema Overview
 
@@ -183,7 +183,7 @@ The API automatically creates/updates the schema on startup via `db::init_treasu
 
 ```bash
 # Connect to database
-docker exec -it treasury-postgres psql -U postgres -d treasury_data
+docker exec -it administration-postgres psql -U postgres -d administration_data
 
 # Run schema file
 \i /path/to/database/schema/treasury.sql
@@ -192,7 +192,7 @@ docker exec -it treasury-postgres psql -U postgres -d treasury_data
 Or:
 
 ```bash
-docker exec -T treasury-postgres psql -U postgres -d treasury_data < database/schema/treasury.sql
+docker exec -T administration-postgres psql -U postgres -d administration_data < database/schema/treasury.sql
 ```
 
 ## YACI Store Tables

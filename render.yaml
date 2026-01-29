@@ -1,4 +1,4 @@
-# Render Blueprint for Cardano Treasury Fund Tracking System
+# Render Blueprint for Cardano Administration Fund Tracking System
 # https://render.com/docs/blueprint-spec
 #
 # Deploy: Connect your GitHub repo to Render and select this blueprint
@@ -8,16 +8,11 @@
 # 1. The indexer will start syncing from the configured slot
 # 2. Initial sync takes time - monitor via /actuator/health endpoint
 # 3. API will be available immediately at /health
-# 4. Frontend will be available at the assigned URL
-#
-# IMPORTANT: After first deploy, update the treasury-frontend service's
-# NEXT_PUBLIC_API_URL build arg with the actual treasury-api URL
 
 services:
-  # Treasury API - Rust backend for querying treasury data
-  # Deploy this first to get the URL for the frontend
+  # Administration API - Rust backend for querying administration data
   - type: web
-    name: treasury-api
+    name: administration-api
     runtime: docker
     dockerfilePath: ./api/Dockerfile
     dockerContext: ./api
@@ -27,39 +22,17 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: treasury-db
+          name: administration-db
           property: connectionString
       - key: RUST_LOG
         value: info
-    autoDeploy: true
-
-  # Treasury Frontend - Next.js dashboard
-  - type: web
-    name: treasury-frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
-    region: oregon
-    plan: starter
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      # IMPORTANT: Replace this URL after first deployment
-      # Get the actual URL from: Render Dashboard > treasury-api > Settings
-      - key: NEXT_PUBLIC_API_URL
-        value: https://YOUR-API-URL.onrender.com  # <-- UPDATE THIS
-      # Server-side API URL (same as NEXT_PUBLIC_API_URL for Render)
-      # IMPORTANT: Replace this URL after first deployment
-      - key: API_URL
-        value: https://YOUR-API-URL.onrender.com  # <-- UPDATE THIS
     autoDeploy: true
 
   # YACI Store Indexer - Syncs Cardano blockchain data
   # Note: This is a long-running service that syncs blockchain data
   # It needs more resources than the API
   - type: web
-    name: treasury-indexer
+    name: administration-indexer
     runtime: docker
     dockerfilePath: ./indexer/Dockerfile.render
     dockerContext: ./indexer
@@ -71,21 +44,21 @@ services:
         value: -Xmx1536m -Xms512m -XX:+UseG1GC
       - key: SPRING_DATASOURCE_URL
         fromDatabase:
-          name: treasury-db
+          name: administration-db
           property: connectionString
       - key: SPRING_DATASOURCE_USERNAME
         fromDatabase:
-          name: treasury-db
+          name: administration-db
           property: user
       - key: SPRING_DATASOURCE_PASSWORD
         fromDatabase:
-          name: treasury-db
+          name: administration-db
           property: password
     autoDeploy: true
 
 databases:
-  # PostgreSQL database for storing blockchain and treasury data
-  - name: treasury-db
+  # PostgreSQL database for storing blockchain and administration data
+  - name: administration-db
     plan: basic-256mb  # 1GB storage, upgrade to standard for production
     region: oregon
     postgresMajorVersion: "15"

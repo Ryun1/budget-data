@@ -1,6 +1,17 @@
-# Cardano Treasury Fund Tracking System
+# Intersect Budget Administration Data
 
-A system to track funds flowing through Cardano treasury smart contracts using YACI Store for blockchain indexing, PostgreSQL for storage, and a Rust-based API backend.
+A system to collect on-chain Budget administration data
+and offer a simple API.
+
+Using YACI Store for blockchain indexing,
+PostgreSQL for storage
+and a Rust-based API backend.
+
+Swagger Docs hosted at
+- [administration.info.intersectmbo.org/docs](https://administration.info.intersectmbo.org/docs)
+
+API instance hosted at
+- [administration.info.intersectmbo.org/api/v1](https://administration.info.intersectmbo.org/api/v1)
 
 ## Architecture
 
@@ -20,7 +31,7 @@ A system to track funds flowing through Cardano treasury smart contracts using Y
 ## Project Structure
 
 ```
-budget-data/
+administration-data/
 ├── indexer/                 # YACI Store indexer configuration
 │   ├── application.properties
 │   ├── config/
@@ -38,7 +49,6 @@ budget-data/
 │   │   └── db/              # Database utilities
 │   ├── Cargo.toml
 │   └── README.md            # Full API documentation
-├── frontend/               # Next.js React dashboard
 ├── docs/                    # Documentation
 │   └── architecture.md      # Data flow diagrams
 ├── database/
@@ -64,7 +74,7 @@ budget-data/
 This starts:
 - **PostgreSQL** on port 5433 (host) / 5432 (container)
 - **YACI Store Indexer** on port 8081 (syncs Cardano blockchain)
-- **Treasury API** on port 8080
+- **Administration API** on port 8080
 
 ### Verify Services
 
@@ -152,6 +162,8 @@ The YACI Store indexer exposes its own API on port 8081:
 
 ### Treasury Reserve Contract
 
+We can configure the Treasury Reserve instance that we index for.
+
 | Property | Value |
 |----------|-------|
 | Payment Address | `addr1xxzc8pt7fgf0lc0x7eq6z7z6puhsxmzktna7dluahrj6g6v9swzhujsjlls7dajp59u95re0qdk9vh8mumlemw89535s4ecqxj` |
@@ -210,10 +222,10 @@ The system uses two schemas:
 
 ```bash
 # Via docker
-docker exec -it treasury-postgres psql -U postgres -d treasury_data
+docker exec -it administration-postgres psql -U postgres -d administration_data
 
 # Via local psql (port 5433)
-psql -h localhost -p 5433 -U postgres -d treasury_data
+psql -h localhost -p 5433 -U postgres -d administration_data
 ```
 
 ### Key Queries
@@ -240,52 +252,9 @@ ORDER BY block_time DESC LIMIT 10;
 
 YACI Store plugins filter blockchain data to only store treasury-relevant information:
 
-- **UTXO Filter**: Only addresses with stake credential `8583857e4a12ffe1e6f641a1785a0f2f036c565cfbe6ff9db8e5a469`
 - **Metadata Filter**: Only metadata with label `1694` (TOM standard) AND instance `9e65e4ed7d6fd86fc4827d2b45da6d2c601fb920e8bfd794b8ecc619`
 
 This reduces database size by ~95% while keeping all treasury data.
-
-## Deployment (Render)
-
-This project includes a Render blueprint for easy cloud deployment.
-
-### One-Click Deploy
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
-
-### Manual Deploy
-
-1. Fork this repository to your GitHub account
-
-2. Connect to Render:
-   - Go to [Render Dashboard](https://dashboard.render.com/)
-   - Click "New" → "Blueprint"
-   - Connect your GitHub repo
-   - Select the `render.yaml` blueprint
-
-3. Render will create:
-   - **treasury-db** - PostgreSQL database
-   - **treasury-api** - Rust API (auto-deploys on push)
-   - **treasury-indexer** - YACI Store indexer (manual deploy)
-
-4. After deployment:
-   - API: `https://treasury-api-xxxx.onrender.com/health`
-   - Swagger UI: `https://treasury-api-xxxx.onrender.com/docs`
-   - Indexer: `https://treasury-indexer-xxxx.onrender.com/actuator/health`
-
-### Resource Requirements
-
-| Service | Plan | Memory | Notes |
-|---------|------|--------|-------|
-| treasury-api | Starter | 512MB | Lightweight Rust binary |
-| treasury-indexer | Standard | 2GB | Needs memory for blockchain sync |
-| treasury-db | Starter | 1GB | Upgrade for production |
-
-### Environment Variables
-
-Set automatically by Render from the database:
-- `DATABASE_URL` - PostgreSQL connection string
-- `SPRING_DATASOURCE_URL` - JDBC connection for indexer
 
 ## Component Documentation
 
@@ -296,4 +265,4 @@ Set automatically by Render from the database:
 
 ## License
 
-[To be determined]
+See [LICENSE](./LICENSE).

@@ -1,4 +1,4 @@
--- Custom tables for treasury fund tracking
+-- Custom tables for administration data tracking
 -- These tables extend YACI Store's schema with treasury-specific data
 
 -- Treasury transactions with parsed metadata
